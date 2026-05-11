@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Life Chronometer | Aesthetic Age Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: radial-gradient(circle at top right, #1e293b, #0f172a);
+            color: #f8fafc;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            min-height: screen;
+            overflow-x: hidden;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+        }
+        .glow-text { text-shadow: 0 0 20px rgba(56, 189, 248, 0.5); }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-6">
+
+    <div class="glass max-w-lg w-full p-8 md:p-12 shadow-2xl">
+        <header class="text-center mb-10">
+            <h1 class="text-3xl font-bold tracking-tight glow-text text-sky-400">LIFE CHRONOMETER</h1>
+            <p class="text-slate-400 mt-2 text-sm uppercase tracking-widest">Temporal Analysis Engine</p>
+        </header>
+
+        <div class="space-y-6">
+            <div>
+                <label class="block text-xs font-bold text-slate-500 mb-2 uppercase">Birth Date</label>
+                <input type="date" id="birthDate" class="w-full bg-slate-800/50 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:ring-2 focus:ring-sky-500 transition">
+            </div>
+            
+            <div>
+                <label class="block text-xs font-bold text-slate-500 mb-2 uppercase">Birth Time (Optional)</label>
+                <input type="time" id="birthTime" class="w-full bg-slate-800/50 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:ring-2 focus:ring-sky-500 transition">
+            </div>
+
+            <button onclick="calculateAge()" class="w-full bg-sky-500 hover:bg-sky-400 text-white font-bold py-4 rounded-xl transition-all transform hover:scale-[1.02] active:scale-95 shadow-lg shadow-sky-500/20">
+                REVEAL EXISTENCE
+            </button>
+        </div>
+
+        <div id="resultArea" class="hidden mt-12 text-center animate-fade-in">
+            <div class="h-px bg-gradient-to-r from-transparent via-slate-700 to-transparent mb-8"></div>
+            <p class="text-slate-400 text-sm mb-2">You have been breathing for:</p>
+            <div id="ageDisplay" class="text-4xl md:text-5xl font-bold text-white mb-4"></div>
+            <div id="subDisplay" class="text-slate-400 font-light space-y-1 text-lg"></div>
+        </div>
+    </div>
+
+    <script>
+        let tickerInterval;
+
+        function calculateAge() {
+            const dateInput = document.getElementById('birthDate').value;
+            const timeInput = document.getElementById('birthTime').value || "00:00";
+
+            if (!dateInput) {
+                alert("The chronometer requires a date.");
+                return;
+            }
+
+            // Fire the fireworks immediately for the "Vibe"
+            confetti({
+                particleCount: 150,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#38bdf8', '#818cf8', '#f472b6']
+            });
+
+            document.getElementById('resultArea').classList.remove('hidden');
+
+            if (tickerInterval) clearInterval(tickerInterval);
+
+            tickerInterval = setInterval(() => {
+                const now = new Date();
+                const birth = new Date(`${dateInput}T${timeInput}`);
+                const diff = now - birth;
+
+                if (diff < 0) {
+                    document.getElementById('ageDisplay').innerText = "Not born yet?";
+                    return;
+                }
+
+                const years = Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
+                const days = Math.floor((diff / (1000 * 60 * 60 * 24)) % 365.25);
+                const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+                const mins = Math.floor((diff / (1000 * 60)) % 60);
+                const secs = Math.floor((diff / 1000) % 60);
+
+                document.getElementById('ageDisplay').innerHTML = `${years} <span class="text-xl text-sky-500 underline decoration-2 offset-4">Years</span>`;
+                document.getElementById('subDisplay').innerHTML = `
+                    <div>${days} days, ${hours} hours</div>
+                    <div class="text-sky-400 font-mono text-2xl mt-2">${mins}m ${secs}s</div>
+                `;
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
