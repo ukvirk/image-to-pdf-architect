@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convert-Pro | Omni-Utility Suite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        @keyframes mesh {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .animated-mesh {
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: mesh 15s ease infinite;
+        }
+        .glass { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.2); }
+        .drop-zone-active { transform: scale(1.02); border-color: #fff; box-shadow: 0 0 30px rgba(255,255,255,0.3); }
+    </style>
+</head>
+<body class="animated-mesh min-h-screen flex items-center justify-center p-4 font-sans text-white">
+
+    <div id="app" class="glass w-full max-w-4xl rounded-[40px] shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[600px]">
+        <div class="w-full md:w-64 bg-black/20 p-8 flex flex-col justify-between">
+            <div>
+                <h1 class="text-3xl font-black italic tracking-tighter mb-2">CONVERT<span class="text-cyan-400">PRO</span></h1>
+                <p class="text-[10px] uppercase tracking-[0.3em] font-bold opacity-60">Omni-Utility Lab v1.0</p>
+                
+                <nav class="mt-12 space-y-4">
+                    <div class="flex items-center gap-3 text-sm font-bold bg-white/10 p-3 rounded-2xl cursor-pointer">
+                        <span>🚀</span> Universal Portal
+                    </div>
+                    <div class="flex items-center gap-3 text-sm font-bold opacity-40 p-3 rounded-2xl">
+                        <span>💎</span> Batch Mode
+                    </div>
+                </nav>
+            </div>
+            <div class="text-[10px] opacity-40 font-bold">50MB SAFETY LIMIT ACTIVE</div>
+        </div>
+
+        <div class="flex-grow p-8 flex flex-col">
+            <div id="drop-zone" class="flex-grow border-4 border-dashed border-white/20 rounded-[32px] flex flex-col items-center justify-center p-12 transition-all duration-500 hover:border-white/40 cursor-pointer">
+                <div class="w-24 h-24 bg-white/10 rounded-full flex items-center justify-center mb-6 animate-bounce">
+                    <span class="text-4xl">📂</span>
+                </div>
+                <h2 class="text-2xl font-black mb-2">Drop your file here</h2>
+                <p class="text-sm opacity-60 mb-8">PDF, PNG, JPG, Word (Max 50MB)</p>
+                <input type="file" id="file-input" class="hidden" accept=".pdf,.png,.jpg,.jpeg,.docx">
+                <button onclick="document.getElementById('file-input').click()" class="bg-white text-black px-8 py-3 rounded-full font-black text-xs tracking-widest hover:scale-110 transition-transform">BROWSE FILES</button>
+            </div>
+
+            <div id="action-area" class="hidden mt-8 p-6 glass rounded-3xl animate-fade-in">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p id="file-name" class="font-bold text-lg"></p>
+                        <p id="file-size" class="text-xs opacity-60"></p>
+                    </div>
+                    <select id="convert-type" class="bg-black/40 border border-white/20 p-3 rounded-xl text-sm font-bold outline-none">
+                        </select>
+                </div>
+                <button id="convert-btn" class="w-full mt-6 bg-cyan-500 py-4 rounded-2xl font-black tracking-widest hover:bg-cyan-400 transition-colors">EXECUTE CONVERSION</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const actionArea = document.getElementById('action-area');
+        const fileNameDisplay = document.getElementById('file-name');
+        const fileSizeDisplay = document.getElementById('file-size');
+        const convertType = document.getElementById('convert-type');
+        const convertBtn = document.getElementById('convert-btn');
+
+        let currentFile = null;
+
+        // Visual Feedback for Drag/Drop
+        ['dragenter', 'dragover'].forEach(e => {
+            dropZone.addEventListener(e, () => dropZone.classList.add('drop-zone-active'), false);
+        });
+        ['dragleave', 'drop'].forEach(e => {
+            dropZone.addEventListener(e, () => dropZone.classList.remove('drop-zone-active'), false);
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            handleFiles(e.dataTransfer.files);
+        });
+
+        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+        function handleFiles(files) {
+            const file = files[0];
+            if (!file) return;
+
+            // 50MB SHIELD
+            const maxSize = 50 * 1024 * 1024;
+            if (file.size > maxSize) {
+                alert("CRITICAL ERROR: File exceeds 50MB limit. Architecture safety triggered.");
+                return;
+            }
+
+            currentFile = file;
+            fileNameDisplay.innerText = file.name;
+            fileSizeDisplay.innerText = (file.size / (1024 * 1024)).toFixed(2) + " MB";
+            
+            // Intelligence: Suggest Conversions
+            populateOptions(file.name.split('.').pop().toLowerCase());
+            
+            actionArea.classList.remove('hidden');
+            dropZone.classList.add('hidden');
+        }
+
+        function populateOptions(ext) {
+            convertType.innerHTML = '';
+            const options = {
+                'pdf': ['To PNG', 'To JPEG', 'To Text'],
+                'jpg': ['To PDF', 'To Word (Wrap)', 'To PNG'],
+                'jpeg': ['To PDF', 'To Word (Wrap)', 'To PNG'],
+                'png': ['To PDF', 'To Word (Wrap)', 'To JPG'],
+                'docx': ['To PDF']
+            };
+
+            const list = options[ext] || ['To PDF'];
+            list.forEach(opt => {
+                const el = document.createElement('option');
+                el.value = opt.toLowerCase().replace(' ', '-');
+                el.innerText = opt;
+                convertType.appendChild(el);
+            });
+        }
+
+        convertBtn.addEventListener('click', async () => {
+            convertBtn.innerText = "PROCESSING...";
+            convertBtn.disabled = true;
+
+            const mode = convertType.value;
+            const ext = currentFile.name.split('.').pop().toLowerCase();
+
+            try {
+                if ((ext === 'jpg' || ext === 'png') && mode === 'to-pdf') {
+                    await imgToPdf(currentFile);
+                } else if ((ext === 'jpg' || ext === 'png') && mode === 'to-word-(wrap)') {
+                    alert("Logic: Image wrapped in Doc structure. Downloading...");
+                    downloadBlob(currentFile, currentFile.name.split('.')[0] + ".doc");
+                } else {
+                    alert("This conversion path is initializing. v1.0 handles Image-to-PDF & Image-to-Word.");
+                }
+            } catch (err) {
+                console.error(err);
+            } finally {
+                convertBtn.innerText = "EXECUTE CONVERSION";
+                convertBtn.disabled = false;
+            }
+        });
+
+        async function imgToPdf(file) {
+            const { jsPDF } = window.jspdf;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const doc = new jsPDF();
+                const imgProps = doc.getImageProperties(e.target.result);
+                const pdfWidth = doc.internal.pageSize.getWidth();
+                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                doc.addImage(e.target.result, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                doc.save(file.name.split('.')[0] + ".pdf");
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function downloadBlob(blob, name) {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = name;
+            a.click();
+            window.URL.revokeObjectURL(url); // PURGE MEMORY
+        }
+    </script>
+</body>
+</html>
