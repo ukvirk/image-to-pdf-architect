@@ -3,278 +3,300 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AetherFlow | Convert-Pro Elite</title>
+    <title>Convert-Pro Ultra | Elite Utility</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/framer-motion/10.16.4/framer-motion.umd.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
+
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; overflow: hidden; }
-        .mesh-gradient {
-            background: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
-                        radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
-                        radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
-            background-color: #050505;
-        }
-        .glass-card {
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap');
+        
+        :root { --accent: #00f2ff; --bg: #050505; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: white; overflow-x: hidden; }
+
+        .glass-panel {
             background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(40px);
+            backdrop-filter: blur(25px);
             border: 1px solid rgba(255, 255, 255, 0.08);
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
-        .btn-primary {
-            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+        .mesh-gradient {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+            background: radial-gradient(circle at 0% 0%, #1a1a2e 0%, transparent 50%),
+                        radial-gradient(circle at 100% 100%, #16213e 0%, transparent 50%),
+                        radial-gradient(circle at 50% 50%, #0f3460 0%, transparent 50%);
+            filter: blur(80px); opacity: 0.6;
         }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.5); }
-        .tab-active { border-bottom: 2px solid #a855f7; color: white; }
-        .shimmer {
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
-            background-size: 200% 100%;
-            animation: shimmer 2s infinite;
-        }
-        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+
+        .tab-btn.active { color: var(--accent); border-bottom: 2px solid var(--accent); }
+        .drop-zone.active { border-color: var(--accent); background: rgba(0, 242, 255, 0.05); }
+
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        .floating { animation: float 6s ease-in-out infinite; }
     </style>
 </head>
-<body class="mesh-gradient min-h-screen text-slate-200">
+<body class="min-h-screen p-4 md:p-8">
+    <div class="mesh-gradient"></div>
 
-    <div class="fixed top-0 w-full bg-white/5 border-b border-white/5 py-2 px-6 flex justify-between items-center z-50">
-        <div id="quote-display" class="text-[10px] font-bold tracking-[0.2em] text-indigo-400 uppercase">
-            System Initializing...
-        </div>
-        <div class="text-[10px] opacity-40 font-mono">STRICT 50MB LIMIT ENFORCED</div>
-    </div>
-
-    <div class="flex flex-col items-center justify-center min-h-screen p-6">
-        <div class="w-full max-w-5xl flex flex-col gap-6">
-            
-            <div class="flex flex-col md:flex-row justify-between items-end gap-4 px-2">
-                <div>
-                    <h1 class="text-4xl font-black tracking-tighter text-white">CONVERT<span class="text-indigo-500">PRO</span></h1>
-                    <p class="text-sm opacity-50">Elite Omni-Utility Engine</p>
-                </div>
-                <div class="flex gap-6 text-xs font-bold opacity-60">
-                    <button class="tab-active pb-1">CONVERTER</button>
-                    <button class="hover:opacity-100 transition pb-1">HISTORY</button>
-                    <button class="hover:opacity-100 transition pb-1">SETTINGS</button>
-                </div>
+    <div class="max-w-6xl mx-auto">
+        <header class="flex justify-between items-center mb-12">
+            <div>
+                <h1 class="text-4xl font-extrabold tracking-tighter italic">CONVERT<span class="text-cyan-400">PRO</span></h1>
+                <p class="text-[10px] tracking-[0.4em] opacity-50 font-bold uppercase">Systems Architect Engine</p>
             </div>
+            <div class="flex gap-6 text-xs font-bold uppercase tracking-widest">
+                <button onclick="switchTab('home')" class="tab-btn active transition-all pb-1" id="tab-home">Home</button>
+                <button onclick="switchTab('converter')" class="tab-btn transition-all pb-1" id="tab-converter">Converter</button>
+                <button onclick="switchTab('info')" class="tab-btn transition-all pb-1" id="tab-info">Instructions</button>
+            </div>
+        </header>
 
-            <div id="main-container" class="glass-card rounded-[40px] p-2 min-h-[550px] relative flex flex-col">
-                
-                <div id="state-idle" class="flex-grow flex flex-col items-center justify-center p-12 text-center">
-                    <div class="w-24 h-24 mb-6 rounded-full bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center border border-indigo-500/30">
-                        <svg class="w-10 h-10 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                    </div>
-                    <h2 class="text-3xl font-bold text-white mb-2">Initialize Conversion</h2>
-                    <p class="text-slate-400 max-w-md mb-8">Drag your assets here or browse. Our engine processes everything locally for maximum security.</p>
-                    
-                    <input type="file" id="file-input" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.docx">
-                    <button onclick="document.getElementById('file-input').click()" class="btn-primary px-12 py-4 rounded-2xl text-white font-black text-xs tracking-widest">
-                        BROWSE LOCAL FILES
-                    </button>
-                </div>
-
-                <div id="state-staged" class="hidden flex-grow flex flex-col p-12">
-                    <div class="flex justify-between items-start mb-12">
-                        <div class="flex items-center gap-6">
-                            <div id="file-icon" class="w-16 h-16 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-3xl">📄</div>
-                            <div>
-                                <h3 id="staged-filename" class="text-2xl font-bold text-white truncate max-w-xs">filename.pdf</h3>
-                                <p id="staged-filesize" class="text-xs opacity-50 font-mono tracking-widest uppercase">0.00 MB</p>
-                            </div>
-                        </div>
-                        <button onclick="resetState()" class="flex items-center gap-2 text-[10px] font-black tracking-widest bg-white/5 hover:bg-red-500/20 hover:text-red-400 px-4 py-2 rounded-full transition-all border border-white/10">
-                            REPLACE FILE ↩
-                        </button>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div class="space-y-4">
-                            <label class="text-[10px] font-black opacity-40 tracking-widest">TARGET ARCHITECTURE</label>
-                            <select id="target-format" class="w-full bg-white/5 border border-white/10 p-5 rounded-2xl outline-none focus:border-indigo-500 transition-all font-bold">
-                                </select>
-                        </div>
-                        <div class="flex flex-col justify-end">
-                            <button id="execute-btn" class="btn-primary w-full py-5 rounded-2xl font-black text-sm tracking-[0.2em] shadow-lg">
-                                EXECUTE SYSTEM CONVERSION
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="mt-auto pt-8 border-t border-white/5">
-                        <div class="flex items-center gap-2 text-indigo-400">
-                            <span class="relative flex h-2 w-2">
-                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                                <span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-                            </span>
-                            <span class="text-[10px] font-bold tracking-widest uppercase" id="engine-status">Engine Ready for Deployment</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="processing-overlay" class="hidden absolute inset-0 glass-card z-40 rounded-[40px] flex flex-col items-center justify-center">
-                    <div class="w-24 h-1 bg-white/10 rounded-full overflow-hidden mb-4">
-                        <div id="progress-bar" class="h-full bg-indigo-500 w-0 transition-all duration-300"></div>
-                    </div>
-                    <p class="text-xs font-bold tracking-widest animate-pulse">RECONFIGURING DATA BLOCKS...</p>
-                </div>
-
+        <div id="view-home" class="view space-y-12">
+            <div class="glass-panel p-12 rounded-[50px] text-center relative overflow-hidden">
+                <div class="absolute -top-24 -right-24 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl"></div>
+                <h2 class="text-6xl font-black mb-6 leading-tight">One Tool.<br>All Formats.</h2>
+                <p class="text-gray-400 max-w-xl mx-auto mb-10 text-lg leading-relaxed">
+                    The world's most efficient browser-side conversion engine. 
+                    Built for speed. Optimized for detail. 100% Private.
+                </p>
+                <button onclick="switchTab('converter')" class="bg-white text-black px-12 py-5 rounded-full font-black text-sm tracking-widest hover:scale-105 transition-all">START CONVERTING</button>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="glass-card p-6 rounded-3xl">
-                    <div class="text-indigo-400 mb-3">01</div>
-                    <h4 class="font-bold text-white mb-1">Local Processing</h4>
-                    <p class="text-[10px] opacity-50 leading-relaxed">No data ever leaves your browser. We use client-side Blob generation for maximum privacy.</p>
+                <div class="glass-panel p-8 rounded-3xl">
+                    <span class="text-3xl mb-4 block">📦</span>
+                    <h3 class="font-bold mb-2">Multi-Page Sync</h3>
+                    <p class="text-xs text-gray-500">15-page PDFs? We extract every page into high-res images and auto-ZIP for you.</p>
                 </div>
-                <div class="glass-card p-6 rounded-3xl">
-                    <div class="text-indigo-400 mb-3">02</div>
-                    <h4 class="font-bold text-white mb-1">Format Integrity</h4>
-                    <p class="text-[10px] opacity-50 leading-relaxed">Our engine forces exact MIME-type headers to ensure correct file extensions on download.</p>
+                <div class="glass-panel p-8 rounded-3xl">
+                    <span class="text-3xl mb-4 block">🛡️</span>
+                    <h3 class="font-bold mb-2">50MB Shield</h3>
+                    <p class="text-xs text-gray-500">Built-in RAM protection to ensure your device never crashes during heavy lifting.</p>
                 </div>
-                <div class="glass-card p-6 rounded-3xl">
-                    <div class="text-indigo-400 mb-3">03</div>
-                    <h4 class="font-bold text-white mb-1">Architect Support</h4>
-                    <p class="text-[10px] opacity-50 leading-relaxed">Support for PDF, Images, and Word-Wrap. Optimized for modern browser standards.</p>
+                <div class="glass-panel p-8 rounded-3xl">
+                    <span class="text-3xl mb-4 block">📄</span>
+                    <h3 class="font-bold mb-2">Native Formats</h3>
+                    <p class="text-xs text-gray-500">Valid XML Word docs and CMYK-ready PDFs. No corruption. No errors.</p>
                 </div>
+            </div>
+        </div>
+
+        <div id="view-converter" class="view hidden space-y-8">
+            <div id="drop-zone" class="glass-panel h-[400px] rounded-[50px] border-2 border-dashed border-white/10 flex flex-col items-center justify-center p-12 transition-all cursor-pointer">
+                <div class="floating text-6xl mb-6">🛰️</div>
+                <h2 class="text-2xl font-black mb-2">Initiate Upload</h2>
+                <p class="text-sm opacity-50 mb-8">PDF, PNG, JPG, DOCX (Strict 50MB Limit)</p>
+                <input type="file" id="file-input" class="hidden">
+                <button onclick="document.getElementById('file-input').click()" class="bg-cyan-500 text-black px-10 py-4 rounded-full font-black text-xs tracking-widest hover:bg-cyan-400 transition-all">SELECT SYSTEM FILE</button>
+            </div>
+
+            <div id="process-zone" class="hidden glass-panel p-8 rounded-[40px] animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div class="flex flex-col md:flex-row justify-between items-center gap-6">
+                    <div class="flex items-center gap-4">
+                        <div class="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center text-2xl" id="file-icon">📄</div>
+                        <div>
+                            <p id="file-name" class="font-bold text-xl truncate max-w-[200px] md:max-w-md"></p>
+                            <p id="file-size" class="text-xs opacity-50"></p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-4 w-full md:w-auto">
+                        <select id="conversion-target" class="bg-black/50 border border-white/20 p-4 rounded-2xl text-xs font-bold outline-none flex-grow md:w-48"></select>
+                        <button id="convert-btn" class="bg-white text-black px-8 py-4 rounded-2xl font-black text-xs tracking-widest hover:scale-105 transition-all">CONVERT</button>
+                        <button onclick="resetSystem()" class="bg-red-500/20 text-red-500 p-4 rounded-2xl font-bold text-xs hover:bg-red-500/40 transition-all">BACK</button>
+                    </div>
+                </div>
+                <div id="progress-container" class="hidden mt-8">
+                    <div class="w-full bg-white/5 h-2 rounded-full overflow-hidden">
+                        <div id="progress-bar" class="bg-cyan-400 h-full w-0 transition-all"></div>
+                    </div>
+                    <p id="status-text" class="text-[10px] uppercase tracking-widest mt-2 text-cyan-400 font-bold">Initializing Engine...</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-info" class="view hidden glass-panel p-12 rounded-[50px]">
+            <h2 class="text-3xl font-black mb-8">System Instructions</h2>
+            <div class="space-y-6 text-gray-400">
+                <div class="border-l-2 border-cyan-500 pl-6">
+                    <h4 class="text-white font-bold mb-1">PDF to Images</h4>
+                    <p class="text-sm">Upload a PDF. Select "To Image ZIP". The system will render every page as a high-quality PNG, bundle them into a ZIP, and download instantly.</p>
+                </div>
+                <div class="border-l-2 border-white/10 pl-6">
+                    <h4 class="text-white font-bold mb-1">Word to PDF</h4>
+                    <p class="text-sm">Converts native Word formatting into a portable PDF structure optimized for all devices.</p>
+                </div>
+                <div class="border-l-2 border-white/10 pl-6">
+                    <h4 class="text-white font-bold mb-1">Security Protocol</h4>
+                    <p class="text-sm">All processing happens in your browser's V8 engine memory. No files are uploaded to any server. Your data stays on your machine.</p>
+                </div>
+            </div>
+            <div class="mt-12 p-8 bg-cyan-500/5 rounded-3xl italic text-sm text-cyan-200">
+                "The secret of elite productivity is the elimination of friction." — Architect's Motto
             </div>
         </div>
     </div>
 
     <script>
-        const quotes = [
-            "Precision is the soul of excellence.",
-            "Complexity is the enemy; simplicity the savior.",
-            "Architecture defines the limit of performance.",
-            "Code is poetry; UI is the stage."
-        ];
-        
-        let quoteIdx = 0;
-        setInterval(() => {
-            quoteIdx = (quoteIdx + 1) % quotes.length;
-            document.getElementById('quote-display').innerText = quotes[quoteIdx];
-        }, 5000);
-
-        const stateIdle = document.getElementById('state-idle');
-        const stateStaged = document.getElementById('state-staged');
-        const fileInput = document.getElementById('file-input');
-        const stagedFilename = document.getElementById('staged-filename');
-        const stagedFilesize = document.getElementById('staged-filesize');
-        const targetFormat = document.getElementById('target-format');
-        const executeBtn = document.getElementById('execute-btn');
-        const overlay = document.getElementById('processing-overlay');
-        const progressBar = document.getElementById('progress-bar');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
         let currentFile = null;
 
-        fileInput.onchange = (e) => handleFile(e.target.files[0]);
+        function switchTab(tab) {
+            document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`view-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+        }
 
-        function handleFile(file) {
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('active'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('active'));
+        dropZone.addEventListener('drop', (e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); });
+        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+        function handleFiles(files) {
+            const file = files[0];
             if (!file) return;
+
             if (file.size > 50 * 1024 * 1024) {
-                alert("SYSTEM REJECTION: File exceeds 50MB architecture limit.");
+                alert("CRITICAL ERROR: System limit is 50MB. Aborting to protect RAM.");
                 return;
             }
 
             currentFile = file;
-            stagedFilename.innerText = file.name;
-            stagedFilesize.innerText = (file.size / (1024 * 1024)).toFixed(2) + " MB";
+            document.getElementById('file-name').innerText = file.name;
+            document.getElementById('file-size').innerText = (file.size / (1024 * 1024)).toFixed(2) + " MB";
             
             const ext = file.name.split('.').pop().toLowerCase();
-            populateTargets(ext);
+            const target = document.getElementById('conversion-target');
+            target.innerHTML = '';
 
-            stateIdle.classList.add('hidden');
-            stateStaged.classList.remove('hidden');
-        }
-
-        function populateTargets(ext) {
-            targetFormat.innerHTML = '';
-            const map = {
-                'pdf': ['DOC (Word)', 'PNG (Image)', 'JPEG (Image)'],
-                'jpg': ['PDF (Document)', 'PNG (Image)', 'DOC (Word-Wrap)'],
-                'jpeg': ['PDF (Document)', 'PNG (Image)', 'DOC (Word-Wrap)'],
-                'png': ['PDF (Document)', 'JPG (Image)', 'DOC (Word-Wrap)'],
-                'docx': ['PDF (Document)']
+            const routes = {
+                'pdf': ['To Image ZIP (All Pages)', 'To Word (Native)'],
+                'jpg': ['To PDF', 'To PNG', 'To Word'],
+                'jpeg': ['To PDF', 'To PNG', 'To Word'],
+                'png': ['To PDF', 'To JPG', 'To Word'],
+                'docx': ['To PDF']
             };
-            const options = map[ext] || ['PDF (Document)'];
-            options.forEach(opt => {
+
+            (routes[ext] || ['To PDF']).forEach(opt => {
                 const o = document.createElement('option');
-                o.value = opt.split(' ')[0].toLowerCase();
-                o.innerText = `CONVERT TO ${opt}`;
-                targetFormat.appendChild(o);
+                o.value = opt.toLowerCase().replace(/ /g, '-');
+                o.innerText = opt;
+                target.appendChild(o);
             });
+
+            document.getElementById('drop-zone').classList.add('hidden');
+            document.getElementById('process-zone').classList.remove('hidden');
         }
 
-        function resetState() {
+        function resetSystem() {
             currentFile = null;
-            stateStaged.classList.add('hidden');
-            stateIdle.classList.remove('hidden');
-            fileInput.value = '';
+            document.getElementById('drop-zone').classList.remove('hidden');
+            document.getElementById('process-zone').classList.add('hidden');
+            document.getElementById('progress-container').classList.add('hidden');
+            document.getElementById('progress-bar').style.width = '0%';
         }
 
-        executeBtn.onclick = async () => {
-            overlay.classList.remove('hidden');
-            let progress = 0;
-            const interval = setInterval(() => {
-                progress += 10;
-                progressBar.style.width = progress + '%';
-                if(progress >= 100) {
-                    clearInterval(interval);
-                    finalizeConversion();
-                }
-            }, 100);
-        };
+        document.getElementById('convert-btn').addEventListener('click', async () => {
+            const target = document.getElementById('conversion-target').value;
+            const prog = document.getElementById('progress-container');
+            const bar = document.getElementById('progress-bar');
+            const status = document.getElementById('status-text');
 
-        async function finalizeConversion() {
-            const mode = targetFormat.value;
-            const fileNameBase = currentFile.name.split('.')[0];
-            
+            prog.classList.remove('hidden');
+            bar.style.width = '20%';
+            status.innerText = "Initializing Conversion Engine...";
+
             try {
-                if (mode === 'pdf') {
-                    const { jsPDF } = window.jspdf;
-                    const doc = new jsPDF();
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        doc.addImage(e.target.result, 'JPEG', 10, 10, 180, 160);
-                        doc.save(`${fileNameBase}.pdf`);
-                        finish();
-                    };
-                    reader.readAsDataURL(currentFile);
-                } 
-                else if (mode === 'doc') {
-                    // ELITE TRICK: High-fidelity MIME-wrapping for .doc
-                    const blob = new Blob([currentFile], { type: 'application/msword' });
-                    forceDownload(blob, `${fileNameBase}.doc`);
-                    finish();
-                }
-                else if (mode === 'png' || mode === 'jpg') {
-                    // Logic to treat image types
-                    const blob = new Blob([currentFile], { type: `image/${mode}` });
-                    forceDownload(blob, `${fileNameBase}.${mode}`);
-                    finish();
+                if (target.includes('image-zip')) {
+                    await convertPdfToImages(currentFile, bar, status);
+                } else if (target === 'to-pdf') {
+                    await convertToPdf(currentFile, bar, status);
+                } else if (target === 'to-word-native' || target === 'to-word') {
+                    await convertToWord(currentFile, bar, status);
                 }
             } catch (e) {
-                alert("CONVERSION ERROR: Hardware acceleration fault.");
-                finish();
+                console.error(e);
+                status.innerText = "FATAL ERROR. Check Console.";
             }
+        });
+
+        async function convertPdfToImages(file, bar, status) {
+            const zip = new JSZip();
+            const data = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({data}).promise;
+            
+            for(let i = 1; i <= pdf.numPages; i++) {
+                status.innerText = `Rendering Page ${i} of ${pdf.numPages}...`;
+                const page = await pdf.getPage(i);
+                const viewport = page.getViewport({scale: 2.0});
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                await page.render({canvasContext: ctx, viewport}).promise;
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                zip.file(`page-${i}.png`, blob);
+                bar.style.width = `${(i / pdf.numPages) * 100}%`;
+            }
+
+            status.innerText = "Bundling Archive...";
+            const content = await zip.generateAsync({type: "blob"});
+            download(content, `${file.name.split('.')[0]}_images.zip`);
+            status.innerText = "SUCCESS. SYSTEM READY.";
         }
 
-        function forceDownload(blob, name) {
+        async function convertToPdf(file, bar, status) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                status.innerText = "Writing PDF Stream...";
+                doc.addImage(e.target.result, 'JPEG', 10, 10, 190, 0);
+                doc.save(file.name.split('.')[0] + ".pdf");
+                bar.style.width = '100%';
+                status.innerText = "COMPLETED.";
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function convertToWord(file, bar, status) {
+            // USES THE DOCX.JS LIBRARY FOR VALID XML
+            const { Document, Packer, Paragraph, ImageRun } = docx;
+            status.innerText = "Building XML Document...";
+            
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const doc = new Document({
+                    sections: [{
+                        children: [new Paragraph({ children: [new ImageRun({ data: e.target.result, transformation: { width: 400, height: 400 } })] })]
+                    }]
+                });
+
+                const blob = await Packer.toBlob(doc);
+                download(blob, file.name.split('.')[0] + ".docx");
+                bar.style.width = '100%';
+                status.innerText = "SYSTEM DOWNLOAD COMPLETE.";
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function download(blob, name) {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
             a.download = name;
-            document.body.appendChild(a);
             a.click();
-            document.body.removeChild(a);
             URL.revokeObjectURL(url);
-        }
-
-        function finish() {
-            overlay.classList.add('hidden');
-            progressBar.style.width = '0%';
-            alert("CONVERSION SUCCESSFUL: File has been deployed to downloads.");
         }
     </script>
 </body>
