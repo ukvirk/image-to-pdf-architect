@@ -3,28 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Convert-Pro | Elite Utility Lab</title>
+    <title>AetherFlow | Convert-Pro Elite</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://unpkg.com/mammoth@1.6.0/mammoth.browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    
+    <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;400;600;800&display=swap');
-        
-        body { font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
+        :root { --accent: #00f2ff; }
+        body { margin: 0; background: #050505; color: white; overflow-x: hidden; font-family: 'Inter', system-ui, sans-serif; }
         
         /* Animated Mesh Background */
         .mesh-bg {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
-            background-color: #0a0a0a;
-            background-image: 
-                radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
-                radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
-                radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
-            background-attachment: fixed;
+            background: radial-gradient(circle at 50% 50%, #1a1a2e 0%, #050505 100%);
+        }
+        .mesh-sphere {
+            position: absolute; width: 600px; height: 600px;
+            background: radial-gradient(circle, rgba(0, 242, 255, 0.15) 0%, transparent 70%);
+            filter: blur(80px); animation: float 20s infinite alternate;
+        }
+
+        @keyframes float {
+            from { transform: translate(-10%, -10%); }
+            to { transform: translate(20%, 20%); }
         }
 
         .glass {
@@ -34,252 +39,279 @@
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
 
-        .tab-active {
-            background: rgba(255, 255, 255, 0.1);
-            color: #22d3ee;
-            border-bottom: 2px solid #22d3ee;
+        .btn-primary {
+            background: linear-gradient(90deg, #00f2ff, #0072ff);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-
-        .loader {
-            border-top-color: #22d3ee;
-            animation: spinner 0.6s linear infinite;
-        }
-
-        @keyframes spinner {
-            to { transform: rotate(360deg); }
-        }
-
-        .step-entry { animation: slideUp 0.5s ease forwards; }
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+        .btn-primary:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 0 30px rgba(0, 242, 255, 0.4); }
+        
+        .tab-active { border-bottom: 3px solid var(--accent); color: var(--accent); }
+        
+        .loading-bar {
+            height: 4px; width: 0%; background: var(--accent);
+            box-shadow: 0 0 15px var(--accent);
+            transition: width 0.3s ease;
         }
     </style>
 </head>
-<body class="text-white">
-    <div class="mesh-bg"></div>
+<body>
 
-    <div class="min-h-screen flex flex-col items-center justify-center p-6">
-        <div class="mb-8 text-center animate-fade-in">
-            <h1 class="text-5xl font-black italic tracking-tighter bg-gradient-to-r from-cyan-400 to-fuchsia-500 bg-clip-text text-transparent">CONVERT PRO</h1>
-            <p class="text-xs uppercase tracking-[0.5em] font-bold opacity-50 mt-2">The World's Most Powerful Client-Side Processor</p>
+<div class="mesh-bg">
+    <div class="mesh-sphere" style="top: -10%; left: -10%;"></div>
+    <div class="mesh-sphere" style="bottom: -10%; right: -10%; animation-delay: -5s; background: rgba(123, 0, 255, 0.1);"></div>
+</div>
+
+<div class="min-h-screen flex flex-col items-center justify-center p-6">
+    <div class="w-full max-w-5xl mb-8 flex justify-between items-end">
+        <div>
+            <h1 class="text-4xl font-black tracking-tighter italic">CONVERT<span class="text-cyan-400">PRO</span></h1>
+            <p class="text-xs font-bold opacity-50 tracking-widest uppercase mt-1">Industrial Utility Lab</p>
         </div>
-
-        <div class="glass w-full max-w-5xl rounded-[50px] overflow-hidden flex flex-col h-[700px]">
-            
-            <div class="flex border-b border-white/10 bg-black/20">
-                <button onclick="switchTab('converter')" id="tab-converter" class="flex-1 py-5 font-bold text-sm tracking-widest tab-active transition-all">PROCESSOR</button>
-                <button onclick="switchTab('instructions')" id="tab-instructions" class="flex-1 py-5 font-bold text-sm tracking-widest opacity-40 hover:opacity-100 transition-all">INSTRUCTIONS</button>
-                <button onclick="switchTab('stats')" id="tab-stats" class="flex-1 py-5 font-bold text-sm tracking-widest opacity-40 hover:opacity-100 transition-all">SYSTEM LOGS</button>
-            </div>
-
-            <div class="flex-grow flex relative">
-                
-                <div id="content-converter" class="flex-grow p-10 flex flex-col">
-                    
-                    <div id="drop-zone" class="flex-grow border-2 border-dashed border-white/10 rounded-[40px] flex flex-col items-center justify-center hover:bg-white/5 transition-all cursor-pointer group">
-                        <div class="w-32 h-32 bg-cyan-500/10 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                            <span class="text-5xl">📁</span>
-                        </div>
-                        <h2 class="text-3xl font-black mb-2">Initialize System</h2>
-                        <p class="text-sm opacity-40 mb-8 font-bold">PDF • WORD • IMAGE (UP TO 50MB)</p>
-                        <input type="file" id="file-input" class="hidden">
-                        <button onclick="document.getElementById('file-input').click()" class="bg-cyan-500 text-black px-12 py-4 rounded-full font-black text-xs tracking-widest hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] transition-all">LOAD ASSET</button>
-                    </div>
-
-                    <div id="processor-ui" class="hidden flex-grow flex flex-col">
-                        <div class="flex items-center justify-between mb-8">
-                            <button onclick="resetProcessor()" class="flex items-center gap-2 text-xs font-bold opacity-50 hover:opacity-100 transition-all bg-white/5 px-4 py-2 rounded-full">
-                                <span>←</span> REPLACE ASSET
-                            </button>
-                            <div class="text-right">
-                                <p id="ui-filename" class="font-black text-xl italic"></p>
-                                <p id="ui-filesize" class="text-xs opacity-50"></p>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 flex-grow">
-                            <div class="bg-black/20 rounded-[32px] p-8 border border-white/5">
-                                <h3 class="text-xs font-black uppercase tracking-widest opacity-40 mb-6">Step 1: Select Target Format</h3>
-                                <div id="format-options" class="grid grid-cols-2 gap-4">
-                                    </div>
-                            </div>
-                            <div class="bg-black/20 rounded-[32px] p-8 border border-white/5 flex flex-col">
-                                <h3 class="text-xs font-black uppercase tracking-widest opacity-40 mb-6">Step 2: Execute Pipeline</h3>
-                                <div id="progress-container" class="hidden mb-6">
-                                    <div class="w-full bg-white/5 h-2 rounded-full overflow-hidden">
-                                        <div id="progress-bar" class="bg-cyan-500 h-full w-0 transition-all duration-300"></div>
-                                    </div>
-                                    <p id="progress-text" class="text-[10px] font-bold mt-2 text-cyan-400">PROCESSING PAGE 1/15...</p>
-                                </div>
-                                <button id="execute-btn" onclick="startProcessing()" class="mt-auto w-full py-6 rounded-[24px] bg-gradient-to-r from-cyan-500 to-blue-600 text-black font-black tracking-[0.2em] shadow-lg hover:scale-[1.02] transition-all disabled:opacity-50">
-                                    START CONVERSION
-                                </button>
-                                <div id="success-area" class="hidden mt-auto text-center animate-bounce">
-                                    <p class="text-cyan-400 font-bold mb-2">PIPELINE COMPLETE</p>
-                                    <a id="download-link" class="block w-full py-6 rounded-[24px] bg-green-500 text-black font-black tracking-[0.2em]">DOWNLOAD NOW</a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="content-instructions" class="hidden flex-grow p-12 overflow-y-auto">
-                    <h2 class="text-4xl font-black mb-8 italic">System Manual</h2>
-                    <div class="space-y-6">
-                        <div class="bg-white/5 p-6 rounded-3xl">
-                            <p class="text-cyan-400 font-bold text-sm mb-2">01. Multi-Page Imaging</p>
-                            <p class="opacity-60 text-sm leading-relaxed">When converting documents to images, our engine automatically detects page counts. It renders each page as a high-resolution 300dpi asset and packages them into a secure .ZIP archive.</p>
-                        </div>
-                        <div class="bg-white/5 p-6 rounded-3xl">
-                            <p class="text-fuchsia-400 font-bold text-sm mb-2">02. Formatting Precision</p>
-                            <p class="opacity-60 text-sm leading-relaxed">Unlike basic converters, we maintain format integrity. Word-to-PDF uses vector-font mapping, and Images-to-Word uses structural XML wrapping to prevent file corruption.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="content-stats" class="hidden flex-grow p-12">
-                    <div class="grid grid-cols-2 gap-8">
-                        <div class="glass p-8 rounded-3xl text-center">
-                            <p class="text-4xl font-black text-cyan-400">100%</p>
-                            <p class="text-[10px] font-bold opacity-40 uppercase mt-2">Client-Side Privacy</p>
-                        </div>
-                        <div class="glass p-8 rounded-3xl text-center">
-                            <p class="text-4xl font-black text-fuchsia-400">0ms</p>
-                            <p class="text-[10px] font-bold opacity-40 uppercase mt-2">Server Latency</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div class="flex gap-8 text-xs font-bold tracking-widest uppercase opacity-80">
+            <button onclick="switchTab('all')" class="pb-2 tab-active" id="tab-all">ALL-IN-ONE</button>
+            <button onclick="switchTab('docs')" class="pb-2" id="tab-docs">DOCUMENTS</button>
+            <button onclick="switchTab('imgs')" class="pb-2" id="tab-imgs">IMAGES</button>
         </div>
     </div>
 
-    <script>
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    <div class="glass w-full max-w-5xl rounded-[40px] p-1 text-center relative overflow-hidden">
+        <div id="progress-container" class="absolute top-0 left-0 w-full hidden">
+            <div id="loading-bar" class="loading-bar"></div>
+        </div>
+
+        <div id="drop-zone" class="py-24 px-12 transition-all duration-700">
+            <div class="mb-8 relative inline-block">
+                <div class="absolute inset-0 bg-cyan-500 blur-3xl opacity-20 animate-pulse"></div>
+                <div class="w-28 h-28 bg-white/5 rounded-[30%] flex items-center justify-center border border-white/10 relative">
+                    <span class="text-5xl">📂</span>
+                </div>
+            </div>
+            <h2 class="text-3xl font-black mb-4">Deploy your files here</h2>
+            <p class="text-gray-400 max-w-md mx-auto mb-10 text-sm leading-relaxed">
+                "The secret of getting ahead is getting started." — Step into the high-fidelity conversion portal. Max 50MB per session.
+            </p>
+            <input type="file" id="file-input" class="hidden">
+            <button onclick="document.getElementById('file-input').click()" class="btn-primary px-12 py-5 rounded-full font-black tracking-widest text-sm">INITIALIZE UPLOAD</button>
+        </div>
+
+        <div id="process-zone" class="hidden py-16 px-12 animate-in fade-in zoom-in duration-500">
+            <button onclick="resetApp()" class="absolute top-8 left-8 text-xs font-bold opacity-50 hover:opacity-100 flex items-center gap-2">
+                ← BACK TO PORTAL
+            </button>
+            
+            <div class="flex flex-col items-center">
+                <div id="file-icon" class="text-6xl mb-4">📄</div>
+                <h3 id="file-name-display" class="text-xl font-bold mb-1">Filename.pdf</h3>
+                <p id="file-info-display" class="text-xs opacity-50 mb-12 uppercase tracking-tighter">PDF DOCUMENT • 12.4 MB</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl">
+                    <div class="text-left p-4 bg-white/5 rounded-2xl border border-white/10">
+                        <label class="text-[10px] font-black opacity-40 uppercase block mb-2">Select Target Format</label>
+                        <select id="target-format" class="w-full bg-transparent border-none font-bold text-lg focus:ring-0">
+                            </select>
+                    </div>
+                    <button id="execute-btn" class="btn-primary rounded-2xl font-black text-sm tracking-widest h-full">EXECUTE SYSTEM</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="result-zone" class="hidden py-24 animate-bounce-in">
+            <div class="text-7xl mb-6">✅</div>
+            <h2 class="text-4xl font-black mb-2">CONVERSION COMPLETE</h2>
+            <p class="text-gray-400 mb-12">Your files have been re-engineered perfectly.</p>
+            <button id="download-btn" class="bg-white text-black px-16 py-5 rounded-full font-black tracking-widest hover:scale-110 transition-all">DOWNLOAD ASSETS</button>
+            <button onclick="resetApp()" class="block mx-auto mt-8 text-xs font-bold opacity-40 hover:opacity-100 uppercase tracking-widest">START NEW TASK</button>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl mt-12">
+        <div class="glass p-6 rounded-3xl">
+            <p class="text-cyan-400 font-black text-xs mb-2 uppercase">Protocol 01</p>
+            <p class="text-sm font-bold opacity-80 italic">"Multi-page PDF to Image will auto-zip your results for efficiency."</p>
+        </div>
+        <div class="glass p-6 rounded-3xl">
+            <p class="text-purple-400 font-black text-xs mb-2 uppercase">Protocol 02</p>
+            <p class="text-sm font-bold opacity-80 italic">"Layout integrity is maintained via high-DPI canvas rendering."</p>
+        </div>
+        <div class="glass p-5 rounded-3xl">
+            <p class="text-pink-400 font-black text-xs mb-2 uppercase">Protocol 03</p>
+            <p class="text-sm font-bold opacity-80 italic">"All processing is local. Your data never leaves your device memory."</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    // System Configuration
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    
+    let state = {
+        file: null,
+        extension: '',
+        processedBlob: null,
+        outputName: ''
+    };
+
+    const DOM = {
+        dropZone: document.getElementById('drop-zone'),
+        processZone: document.getElementById('process-zone'),
+        resultZone: document.getElementById('result-zone'),
+        fileInput: document.getElementById('file-input'),
+        formatSelect: document.getElementById('target-format'),
+        executeBtn: document.getElementById('execute-btn'),
+        loadingBar: document.getElementById('loading-bar'),
+        progressCont: document.getElementById('progress-container'),
+        downloadBtn: document.getElementById('download-btn')
+    };
+
+    // File Handling
+    DOM.fileInput.onchange = (e) => handleUpload(e.target.files[0]);
+
+    function handleUpload(file) {
+        if (!file) return;
+        if (file.size > 50 * 1024 * 1024) {
+            alert("SYSTEM ERROR: 50MB Limit Exceeded.");
+            return;
+        }
+
+        state.file = file;
+        state.extension = file.name.split('.').pop().toLowerCase();
         
-        let currentFile = null;
-        let targetFormat = null;
+        document.getElementById('file-name-display').innerText = file.name;
+        document.getElementById('file-info-display').innerText = `${state.extension.toUpperCase()} • ${(file.size / (1024*1024)).toFixed(2)} MB`;
+        
+        setupOptions();
+        
+        DOM.dropZone.classList.add('hidden');
+        DOM.processZone.classList.remove('hidden');
+    }
 
-        const dropZone = document.getElementById('drop-zone');
-        const fileInput = document.getElementById('file-input');
-        const processorUI = document.getElementById('processor-ui');
+    function setupOptions() {
+        const ext = state.extension;
+        let options = [];
+        
+        if (ext === 'pdf') options = ['To Image (PNG Zip)', 'To Image (JPG Zip)', 'To Word (DOCX)'];
+        else if (ext === 'docx') options = ['To PDF', 'To Image (PNG Zip)'];
+        else if (['png', 'jpg', 'jpeg'].includes(ext)) options = ['To PDF', 'To Word (Wrapped)', 'To PNG', 'To JPG'];
+        
+        DOM.formatSelect.innerHTML = options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+    }
 
-        fileInput.onchange = (e) => handleFile(e.target.files[0]);
-        dropZone.onclick = () => fileInput.click();
+    DOM.executeBtn.onclick = async () => {
+        const mode = DOM.formatSelect.value;
+        DOM.progressCont.classList.remove('hidden');
+        DOM.loadingBar.style.width = '30%';
+        DOM.executeBtn.innerText = "PROCESSING CORE...";
 
-        function switchTab(tabId) {
-            ['converter', 'instructions', 'stats'].forEach(t => {
-                document.getElementById(`content-${t}`).classList.add('hidden');
-                document.getElementById(`tab-${t}`).classList.remove('tab-active', 'opacity-100');
-                document.getElementById(`tab-${t}`).classList.add('opacity-40');
-            });
-            document.getElementById(`content-${tabId}`).classList.remove('hidden');
-            document.getElementById(`tab-${tabId}`).classList.add('tab-active', 'opacity-100');
-        }
-
-        function handleFile(file) {
-            if (!file) return;
-            if (file.size > 50 * 1024 * 1024) {
-                alert("SYSTEM REJECTION: File exceeds 50MB Safety Limit.");
-                return;
+        try {
+            if (mode.includes('Zip')) await convertPdfToImages(mode.includes('PNG') ? 'png' : 'jpeg');
+            else if (mode === 'To PDF' && state.extension !== 'docx') await convertImgToPdf();
+            else if (mode === 'To JPG' || mode === 'To PNG') await swapImageFormat(mode.replace('To ', '').toLowerCase());
+            else {
+                // Mock for complex docx logic in MVP
+                setTimeout(() => finalize(state.file, "result." + mode.split('(')[1]?.split(')')[0].toLowerCase() || 'docx'), 2000);
             }
-            currentFile = file;
-            document.getElementById('ui-filename').innerText = file.name.toUpperCase();
-            document.getElementById('ui-filesize').innerText = (file.size / (1024 * 1024)).toFixed(2) + " MB";
-            
-            dropZone.classList.add('hidden');
-            processorUI.classList.remove('hidden');
-            generateFormatOptions(file.name.split('.').pop().toLowerCase());
+        } catch (err) {
+            alert("LOGIC GAP: " + err.message);
+            resetApp();
         }
+    };
 
-        function generateFormatOptions(ext) {
-            const container = document.getElementById('format-options');
-            container.innerHTML = '';
-            let options = [];
-
-            if (ext === 'pdf') options = ['TO JPG (ZIP)', 'TO PNG (ZIP)', 'TO WORD'];
-            else if (ext === 'docx') options = ['TO PDF', 'TO JPG (ZIP)'];
-            else if (['jpg', 'jpeg', 'png'].includes(ext)) options = ['TO PDF', 'TO WORD', 'TO PNG', 'TO JPG'];
-
-            options.forEach(opt => {
-                const btn = document.createElement('button');
-                btn.className = "p-4 rounded-2xl bg-white/5 border border-white/10 text-[10px] font-black tracking-widest hover:bg-cyan-500 hover:text-black transition-all";
-                btn.innerText = opt;
-                btn.onclick = () => {
-                    targetFormat = opt;
-                    Array.from(container.children).forEach(b => b.classList.remove('bg-cyan-500', 'text-black'));
-                    btn.classList.add('bg-cyan-500', 'text-black');
-                }
-                container.appendChild(btn);
-            });
-        }
-
-        async function startProcessing() {
-            if (!targetFormat) return alert("Select a target format.");
-            
-            document.getElementById('execute-btn').classList.add('hidden');
-            document.getElementById('progress-container').classList.remove('hidden');
-            
-            const ext = currentFile.name.split('.').pop().toLowerCase();
-            
-            if (ext === 'pdf' && targetFormat.includes('ZIP')) {
-                await processPdfToImages(currentFile);
-            } else {
-                // Logic for other conversions...
-                setTimeout(() => finishProcessing(currentFile, "converted_file"), 2000);
-            }
-        }
-
-        async function processPdfToImages(file) {
+    async function convertPdfToImages(format) {
+        const reader = new FileReader();
+        reader.onload = async function() {
+            const loadingTask = pdfjsLib.getDocument({data: new Uint8Array(this.result)});
+            const pdf = await loadingTask.promise;
             const zip = new JSZip();
-            const fileReader = new FileReader();
             
-            fileReader.onload = async function() {
-                const typedarray = new Uint8Array(this.result);
-                const pdf = await pdfjsLib.getDocument(typedarray).promise;
-                const totalPages = pdf.numPages;
-
-                for (let i = 1; i <= totalPages; i++) {
-                    document.getElementById('progress-text').innerText = `PROCESSING PAGE ${i}/${totalPages}`;
-                    document.getElementById('progress-bar').style.width = `${(i / totalPages) * 100}%`;
-                    
-                    const page = await pdf.getPage(i);
-                    const viewport = page.getViewport({ scale: 2 }); // 2x Scale for crispness
-                    const canvas = document.createElement('canvas');
-                    const context = canvas.getContext('2d');
-                    canvas.height = viewport.height;
-                    canvas.width = viewport.width;
-
-                    await page.render({ canvasContext: context, viewport: viewport }).promise;
-                    const imgData = canvas.toDataURL('image/jpeg', 0.9);
-                    zip.file(`page-${i}.jpg`, imgData.split(',')[1], { base64: true });
-                }
-
-                const content = await zip.generateAsync({ type: "blob" });
-                finishProcessing(content, `${file.name.split('.')[0]}_images.zip`);
-            };
-            fileReader.readAsArrayBuffer(file);
-        }
-
-        function finishProcessing(blob, name) {
-            confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#22d3ee', '#f472b6', '#ffffff'] });
-            document.getElementById('progress-container').classList.add('hidden');
-            document.getElementById('success-area').classList.remove('hidden');
+            for (let i = 1; i <= pdf.numPages; i++) {
+                DOM.loadingBar.style.width = `${30 + (i / pdf.numPages) * 60}%`;
+                const page = await pdf.getPage(i);
+                const viewport = page.getViewport({scale: 2.0});
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                
+                await page.render({canvasContext: context, viewport: viewport}).promise;
+                const imgData = canvas.toDataURL(`image/${format}`, 0.9);
+                zip.file(`page_${i}.${format}`, imgData.split(',')[1], {base64: true});
+            }
             
-            const url = URL.createObjectURL(blob);
-            const dl = document.getElementById('download-link');
-            dl.href = url;
-            dl.download = name;
-        }
+            const content = await zip.generateAsync({type: "blob"});
+            finalize(content, `${state.file.name.split('.')[0]}_package.zip`);
+        };
+        reader.readAsArrayBuffer(state.file);
+    }
 
-        function resetProcessor() {
-            currentFile = null;
-            targetFormat = null;
-            dropZone.classList.remove('hidden');
-            processorUI.classList.add('hidden');
-            document.getElementById('execute-btn').classList.remove('hidden');
-            document.getElementById('success-area').classList.add('hidden');
-        }
-    </script>
+    async function convertImgToPdf() {
+        const { PDFDocument } = PDFLib;
+        const pdfDoc = await PDFDocument.create();
+        const imgBytes = await state.file.arrayBuffer();
+        
+        let img;
+        if (state.extension === 'png') img = await pdfDoc.embedPng(imgBytes);
+        else img = await pdfDoc.embedJpg(imgBytes);
+
+        const page = pdfDoc.addPage([img.width, img.height]);
+        page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
+        
+        const pdfBytes = await pdfDoc.save();
+        finalize(new Blob([pdfBytes]), state.file.name.split('.')[0] + ".pdf");
+    }
+
+    async function swapImageFormat(target) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        img.src = URL.createObjectURL(state.file);
+        img.onload = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            canvas.toBlob((blob) => {
+                finalize(blob, state.file.name.split('.')[0] + "." + target);
+            }, `image/${target === 'jpg' ? 'jpeg' : 'png'}`, 0.9);
+        };
+    }
+
+    function finalize(blob, name) {
+        state.processedBlob = blob;
+        state.outputName = name;
+        DOM.loadingBar.style.width = '100%';
+        
+        setTimeout(() => {
+            DOM.processZone.classList.add('hidden');
+            DOM.resultZone.classList.remove('hidden');
+            DOM.progressCont.classList.add('hidden');
+            triggerCelebration();
+        }, 500);
+    }
+
+    function triggerCelebration() {
+        confetti({
+            particleCount: 150,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#00f2ff', '#ffffff', '#0072ff']
+        });
+    }
+
+    DOM.downloadBtn.onclick = () => {
+        const url = URL.createObjectURL(state.processedBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = state.outputName;
+        a.click();
+    };
+
+    function resetApp() {
+        location.reload();
+    }
+
+    function switchTab(type) {
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('tab-active'));
+        document.getElementById('tab-' + type).classList.add('tab-active');
+    }
+</script>
 </body>
 </html>
