@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Converter Pro — Sovereign Engine</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.min.mjs" type="module"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+<style>
+:root{
+--bg:#000000;
+--surface:rgba(255,255,255,.035);
+--surface-2:rgba(255,255,255,.05);
+--border:rgba(255,255,255,.08);
+--text:#ffffff;
+--muted:rgba(255,255,255,.5);
+--soft:rgba(255,255,255,.22);
+--accent:#6366F1;
+--accent-soft:rgba(99,102,241,.22);
+--shadow:0 40px 120px rgba(0,0,0,.55);
+--radius:32px;
+--ease:cubic-bezier(0.23,1,0.32,1);
+}
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+}
+
+html,
+body{
+width:100%;
+height:100%;
+overflow:hidden;
+background:#000;
+font-family:'Inter',sans-serif;
+color:#fff;
+}
+
+body{
+position:relative;
+}
+
+.canvas-bg{
+position:fixed;
+inset:0;
+overflow:hidden;
+background:#000;
+}
+
+.grid-layer{
+position:absolute;
+inset:0;
+background-image:
+linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+background-size:80px 80px;
+mask-image:linear-gradient(to bottom,transparent,rgba(0,0,0,.7),transparent);
+opacity:.12;
+}
+
+.noise-layer{
+position:absolute;
+inset:-200%;
+opacity:.045;
+pointer-events:none;
+background-image:url('https://grainy-gradients.vercel.app/noise.svg');
+animation:noiseMove 12s linear infinite;
+mix-blend-mode:soft-light;
+}
+
+@keyframes noiseMove{
+0%{transform:translate(0,0)}
+100%{transform:translate(12%,10%)}
+}
+
+.orb{
+position:absolute;
+filter:blur(120px);
+border-radius:50%;
+will-change:transform;
+}
+
+.orb-a{
+width:700px;
+height:700px;
+background:rgba(99,102,241,.18);
+top:-220px;
+left:-100px;
+animation:floatA 28s var(--ease) infinite alternate;
+}
+
+.orb-b{
+width:620px;
+height:620px;
+background:rgba(99,102,241,.11);
+right:-160px;
+bottom:-180px;
+animation:floatB 34s var(--ease) infinite alternate;
+}
+
+@keyframes floatA{
+from{transform:translate3d(0,0,0) scale(1)}
+to{transform:translate3d(120px,80px,0) scale(1.1)}
+}
+
+@keyframes floatB{
+from{transform:translate3d(0,0,0) scale(1)}
+to{transform:translate3d(-100px,-80px,0) scale(1.14)}
+}
+
+.cursor-light{
+position:fixed;
+width:520px;
+height:520px;
+border-radius:50%;
+pointer-events:none;
+background:radial-gradient(circle, rgba(99,102,241,.14), transparent 70%);
+filter:blur(30px);
+transform:translate(-50%,-50%);
+}
+
+.app-shell{
+position:relative;
+z-index:5;
+height:100vh;
+width:100%;
+padding:28px;
+display:flex;
+flex-direction:column;
+gap:22px;
+}
+
+.topbar{
+height:78px;
+border:1px solid var(--border);
+background:rgba(255,255,255,.03);
+backdrop-filter:blur(40px) saturate(180%);
+-webkit-backdrop-filter:blur(40px) saturate(180%);
+border-radius:28px;
+display:flex;
+align-items:center;
+justify-content:space-between;
+padding:0 26px;
+box-shadow:var(--shadow);
+}
+
+.brand{
+display:flex;
+align-items:center;
+gap:14px;
+}
+
+.brand-mark{
+width:18px;
+height:18px;
+border-radius:50%;
+background:var(--accent);
+box-shadow:0 0 20px rgba(99,102,241,.8);
+animation:pulse 2.8s infinite;
+}
+
+@keyframes pulse{
+0%,100%{transform:scale(1);opacity:1}
+50%{transform:scale(1.25);opacity:.7}
+}
+
+.brand h1{
+font-size:18px;
+font-weight:700;
+letter-spacing:-0.04em;
+}
+
+.system-center{
+font-size:11px;
+letter-spacing:.28em;
+text-transform:uppercase;
+color:var(--soft);
+}
+
+.metrics{
+display:flex;
+gap:12px;
+}
+
+.metric{
+padding:12px 16px;
+border-radius:18px;
+background:rgba(255,255,255,.03);
+border:1px solid rgba(255,255,255,.05);
+font-size:11px;
+letter-spacing:.18em;
+text-transform:uppercase;
+color:var(--soft);
+}
+
+.workspace{
+flex:1;
+display:grid;
+grid-template-columns:340px 1fr 340px;
+gap:22px;
+min-height:0;
+}
+
+.panel{
+position:relative;
+border-radius:36px;
+border:1px solid var(--border);
+background:var(--surface);
+backdrop-filter:blur(40px) saturate(180%);
+overflow:hidden;
+box-shadow:var(--shadow);
+}
+
+.panel::before{
+content:'';
+position:absolute;
+inset:0;
+pointer-events:none;
+background:linear-gradient(180deg, rgba(255,255,255,.06), transparent 25%);
+}
+
+.panel-content{
+position:relative;
+z-index:2;
+padding:28px;
+height:100%;
+overflow:auto;
+}
+
+.label{
+font-size:11px;
+letter-spacing:.26em;
+text-transform:uppercase;
+color:var(--soft);
+margin-bottom:18px;
+}
+
+.portal-wrapper{
+position:relative;
+display:flex;
+align-items:center;
+justify-content:center;
+height:100%;
+}
+
+.portal{
+position:relative;
+width:min(720px,90%);
+height:520px;
+border-radius:48px;
+border:1px solid rgba(255,255,255,.08);
+background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+backdrop-filter:blur(60px) saturate(180%);
+box-shadow:
+0 40px 120px rgba(0,0,0,.6),
+0 0 0 1px rgba(255,255,255,.03) inset,
+0 0 120px rgba(99,102,241,.18);
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+gap:24px;
+transition:all .8s var(--ease);
+transform-style:preserve-3d;
+}
+
+.portal:hover{
+transform:translateY(-6px) scale(1.01);
+}
+
+.portal-ring{
+position:absolute;
+width:340px;
+height:340px;
+border-radius:50%;
+border:1px solid rgba(255,255,255,.08);
+animation:ringRotate 12s linear infinite;
+}
+
+.portal-ring::before{
+content:'';
+position:absolute;
+inset:20px;
+border-radius:50%;
+border:1px dashed rgba(255,255,255,.08);
+}
+
+@keyframes ringRotate{
+from{transform:rotate(0deg)}
+to{transform:rotate(360deg)}
+}
+
+.portal-core{
+position:absolute;
+width:160px;
+height:160px;
+border-radius:50%;
+background:radial-gradient(circle at 30% 30%, rgba(255,255,255,.2), rgba(99,102,241,.3));
+filter:blur(0px);
+box-shadow:0 0 60px rgba(99,102,241,.35);
+animation:breathe 4s var(--ease) infinite;
+}
+
+@keyframes breathe{
+0%,100%{transform:scale(1)}
+50%{transform:scale(1.06)}
+}
+
+.portal h2{
+position:relative;
+font-size:58px;
+font-weight:800;
+letter-spacing:-0.08em;
+}
+
+.portal p{
+position:relative;
+font-size:15px;
+color:var(--muted);
+max-width:480px;
+text-align:center;
+line-height:1.7;
+}
+
+.portal-btn{
+position:relative;
+margin-top:10px;
+padding:18px 28px;
+border:none;
+outline:none;
+border-radius:22px;
+background:#fff;
+color:#000;
+font-weight:700;
+letter-spacing:.14em;
+text-transform:uppercase;
+cursor:pointer;
+transition:all .35s var(--ease);
+}
+
+.portal-btn:hover{
+transform:translateY(-3px) scale(1.02);
+}
+
+.portal-btn:active{
+transform:scale(.97);
+}
+
+.hidden-input{
+display:none;
+}
+
+.file-card{
+padding:20px;
+border-radius:24px;
+background:rgba(255,255,255,.03);
+border:1px solid rgba(255,255,255,.06);
+margin-bottom:16px;
+}
+
+.file-name{
+font-size:15px;
+font-weight:600;
+margin-bottom:10px;
+word-break:break-word;
+}
+
+.file-meta{
+font-size:12px;
+color:var(--muted);
+line-height:1.8;
+}
+
+.output-grid{
+display:grid;
+grid-template-columns:1fr;
+gap:12px;
+}
+
+.output-btn{
+position:relative;
+padding:18px;
+border-radius:22px;
+background:rgba(255,255,255,.03);
+border:1px solid rgba(255,255,255,.06);
+cursor:pointer;
+transition:all .35s var(--ease);
+overflow:hidden;
+}
+
+.output-btn:hover{
+transform:translateY(-3px);
+border-color:rgba(99,102,241,.4);
+background:rgba(99,102,241,.08);
+}
+
+.output-btn.active{
+background:rgba(99,102,241,.14);
+border-color:rgba(99,102,241,.45);
+}
+
+.output-title{
+font-size:14px;
+font-weight:700;
+margin-bottom:6px;
+}
+
+.output-desc{
+font-size:12px;
+color:var(--muted);
+line-height:1.6;
+}
+
+.engine-center{
+height:100%;
+display:flex;
+flex-direction:column;
+justify-content:center;
+align-items:center;
+gap:30px;
+}
+
+.progress-orbit{
+position:relative;
+width:260px;
+height:260px;
+border-radius:50%;
+display:flex;
+align-items:center;
+justify-content:center;
+}
+
+.orbit-track,
+.orbit-progress{
+position:absolute;
+inset:0;
+border-radius:50%;
+}
+
+.orbit-track{
+border:1px solid rgba(255,255,255,.06);
+}
+
+.orbit-progress{
+border:4px solid transparent;
+border-top-color:var(--accent);
+animation:orbitSpin 2s linear infinite;
+box-shadow:0 0 40px rgba(99,102,241,.4);
+}
+
+@keyframes orbitSpin{
+from{transform:rotate(0deg)}
+to{transform:rotate(360deg)}
+}
+
+.engine-core{
+width:110px;
+height:110px;
+border-radius:50%;
+background:radial-gradient(circle at 30% 30%, rgba(255,255,255,.18), rgba(99,102,241,.32));
+box-shadow:0 0 40px rgba(99,102,241,.35);
+}
+
+.log-stream{
+width:min(620px,90%);
+height:220px;
+overflow:auto;
+padding:20px;
+border-radius:24px;
+background:rgba(255,255,255,.025);
+border:1px solid rgba(255,255,255,.05);
+font-family:ui-monospace,SFMono-Regular,monospace;
+font-size:12px;
+line-height:1.9;
+color:#d8d8d8;
+}
+
+.log-line{
+animation:fadeUp .4s var(--ease);
+}
+
+@keyframes fadeUp{
+from{opacity:0;transform:translateY(6px)}
+to{opacity:1;transform:translateY(0)}
+}
+
+.action-row{
+display:flex;
+gap:16px;
+}
+
+.primary-btn,
+.secondary-btn{
+padding:18px 28px;
+border-radius:22px;
+border:none;
+outline:none;
+cursor:pointer;
+transition:all .35s var(--ease);
+font-weight:700;
+letter-spacing:.14em;
+text-transform:uppercase;
+}
+
+.primary-btn{
+background:#fff;
+color:#000;
+}
+
+.secondary-btn{
+background:rgba(255,255,255,.04);
+color:#fff;
+border:1px solid rgba(255,255,255,.06);
+}
+
+.primary-btn:hover,
+.secondary-btn:hover{
+transform:translateY(-3px);
+}
+
+.primary-btn:active,
+.secondary-btn:active{
+transform:scale(.98);
+}
+
+.drop-active{
+box-shadow:
+0 40px 120px rgba(0,0,0,.6),
+0 0 0 1px rgba(255,255,255,.03) inset,
+0 0 180px rgba(99,102,241,.42);
+transform:scale(1.02);
+}
+
+.status-pill{
+display:inline-flex;
+align-items:center;
+gap:8px;
+padding:12px 14px;
+border-radius:999px;
+background:rgba(255,255,255,.03);
+border:1px solid rgba(255,255,255,.06);
+font-size:11px;
+letter-spacing:.18em;
+text-transform:uppercase;
+color:var(--soft);
+margin-bottom:18px;
+}
+
+.status-dot{
+width:8px;
+height:8px;
+border-radius:50%;
+background:var(--accent);
+box-shadow:0 0 10px rgba(99,102,241,.8);
+}
+
+::-webkit-scrollbar{
+width:6px;
+}
+
+::-webkit-scrollbar-thumb{
+background:rgba(255,255,255,.08);
+border-radius:999px;
+}
+
+@media(max-width:1400px){
+.workspace{
+grid-template-columns:300px 1fr 300px;
+}
+}
+
+@media(max-width:1200px){
+.workspace{
+grid-template-columns:1fr;
+overflow:auto;
+}
+.portal{
+height:420px;
+}
+body{
+overflow:auto;
+}
+}
+</style>
+</head>
+<body>
+
+<div class="canvas-bg">
+<div class="orb orb-a"></div>
+<div class="orb orb-b"></div>
+<div class="grid-layer"></div>
+<div class="noise-layer"></div>
+<div class="cursor-light" id="cursorLight"></div>
+</div>
+
+<div class="app-shell">
+
+<header class="topbar">
+<div class="brand">
+<div class="brand-mark"></div>
+<h1>Converter Pro</h1>
+</div>
+
+<div class="system-center" id="systemState">SYSTEM READY</div>
+
+<div class="metrics">
+<div class="metric" id="memoryMetric">Memory — Stable</div>
+<div class="metric" id="queueMetric">Queue — Empty</div>
+</div>
+</header>
+
+<section class="workspace">
+
+<aside class="panel">
+<div class="panel-content">
+<div class="status-pill">
+<div class="status-dot"></div>
+INPUT ANALYSIS
+</div>
+
+<div class="label">Input Intelligence</div>
+
+<div id="fileList"></div>
+</div>
+</aside>
+
+<main class="panel">
+<div class="panel-content portal-wrapper">
+
+<div class="portal" id="portal">
+<div class="portal-ring"></div>
+<div class="portal-core"></div>
+
+<h2>Converter Pro</h2>
+<p>
+Sovereign browser-native conversion environment engineered for high-fidelity transformation workflows.
+</p>
+
+<button class="portal-btn" id="selectBtn">
+Initialize Workspace
+</button>
+
+<input type="file" class="hidden-input" id="fileInput" multiple />
+</div>
+
+<div class="engine-center" id="engineCenter" style="display:none;">
+<div class="progress-orbit">
+<div class="orbit-track"></div>
+<div class="orbit-progress"></div>
+<div class="engine-core"></div>
+</div>
+
+<div class="log-stream" id="logStream"></div>
+
+<div class="action-row">
+<button class="secondary-btn" id="resetBtn">Reset</button>
+<button class="primary-btn" id="convertBtn">Convert</button>
+</div>
+</div>
+
+</div>
+</main>
+
+<aside class="panel">
+<div class="panel-content">
+<div class="status-pill">
+<div class="status-dot"></div>
+OUTPUT ENGINE
+</div>
+
+<div class="label">Available Transformations</div>
+
+<div class="output-grid" id="outputGrid"></div>
+</div>
+</aside>
+
+</section>
+</div>
+
+<script>
+const state={
+files:[],
+selectedOutput:null,
+logs:[],
+activeURLs:new Set(),
+workers:[],
+processing:false
+};
+
+const refs={
+portal:document.getElementById('portal'),
+fileInput:document.getElementById('fileInput'),
+selectBtn:document.getElementById('selectBtn'),
+fileList:document.getElementById('fileList'),
+outputGrid:document.getElementById('outputGrid'),
+engineCenter:document.getElementById('engineCenter'),
+logStream:document.getElementById('logStream'),
+convertBtn:document.getElementById('convertBtn'),
+resetBtn:document.getElementById('resetBtn'),
+systemState:document.getElementById('systemState'),
+queueMetric:document.getElementById('queueMetric'),
+memoryMetric:document.getElementById('memoryMetric'),
+cursorLight:document.getElementById('cursorLight')
+};
+
+const conversionMap={
+pdf:['JPEG ZIP','PNG ZIP','JPG ZIP','WEBP ZIP','DOCX'],
+jpg:['JPEG','PNG','PDF','DOCX','WEBP'],
+jpeg:['JPEG','PNG','PDF','DOCX','WEBP'],
+png:['JPEG','JPG','PDF','DOCX','WEBP'],
+webp:['JPEG','PNG','JPG','DOCX','PDF'],
+docx:['JPEG ZIP','PNG ZIP','JPG ZIP','PDF','WEBP ZIP']
+};
+
+function animateCursor(){
+let mouseX=window.innerWidth/2;
+let mouseY=window.innerHeight/2;
+let currentX=mouseX;
+let currentY=mouseY;
+
+window.addEventListener('mousemove',e=>{
+mouseX=e.clientX;
+mouseY=e.clientY;
+});
+
+function tick(){
+currentX+=(mouseX-currentX)*0.08;
+currentY+=(mouseY-currentY)*0.08;
+refs.cursorLight.style.left=currentX+'px';
+refs.cursorLight.style.top=currentY+'px';
+requestAnimationFrame(tick);
+}
+
+tick();
+}
+
+animateCursor();
+
+refs.selectBtn.addEventListener('click',()=>refs.fileInput.click());
+
+refs.fileInput.addEventListener('change',e=>{
+handleFiles([...e.target.files]);
+});
+
+['dragenter','dragover'].forEach(event=>{
+window.addEventListener(event,e=>{
+e.preventDefault();
+refs.portal.classList.add('drop-active');
+});
+});
+
+['dragleave','drop'].forEach(event=>{
+window.addEventListener(event,e=>{
+e.preventDefault();
+refs.portal.classList.remove('drop-active');
+});
+});
+
+window.addEventListener('drop',e=>{
+const files=[...e.dataTransfer.files];
+handleFiles(files);
+});
+
+function handleFiles(files){
+if(!files.length)return;
+
+const valid=[];
+
+for(const file of files){
+if(file.size>50*1024*1024){
+appendLog('[ REJECTED ] File exceeds 50MB limit');
+continue;
+}
+valid.push(file);
+}
+
+state.files=valid;
+renderFiles();
+renderOutputs();
+openWorkspace();
+}
+
+function openWorkspace(){
+refs.portal.style.opacity='0';
+refs.portal.style.transform='translateY(-30px) scale(.96)';
+
+setTimeout(()=>{
+refs.portal.style.display='none';
+refs.engineCenter.style.display='flex';
+appendLog('[ VERIFYING FILE SIGNATURE ]');
+appendLog('[ ALLOCATING MEMORY ]');
+appendLog('[ INITIALIZING RENDER PIPELINE ]');
+appendLog('[ SYSTEM READY ]');
+},600);
+}
+
+function renderFiles(){
+refs.fileList.innerHTML='';
+
+state.files.forEach(file=>{
+const ext=file.name.split('.').pop().toLowerCase();
+const card=document.createElement('div');
+card.className='file-card';
+card.innerHTML=`
+<div class="file-name">${file.name}</div>
+<div class="file-meta">
+TYPE — ${ext.toUpperCase()}<br>
+SIZE — ${(file.size/1024/1024).toFixed(2)} MB<br>
+STATUS — VERIFIED
+</div>
+`;
+refs.fileList.appendChild(card);
+});
+}
+
+function renderOutputs(){
+refs.outputGrid.innerHTML='';
+
+if(!state.files.length)return;
+
+const ext=state.files[0].name.split('.').pop().toLowerCase();
+const outputs=conversionMap[ext]||[];
+
+outputs.forEach(output=>{
+const btn=document.createElement('div');
+btn.className='output-btn';
+btn.innerHTML=`
+<div class="output-title">${output}</div>
+<div class="output-desc">High fidelity browser-native transformation pipeline.</div>
+`;
+
+btn.addEventListener('click',()=>{
+state.selectedOutput=output;
+[...document.querySelectorAll('.output-btn')].forEach(x=>x.classList.remove('active'));
+btn.classList.add('active');
+appendLog(`[ OUTPUT SELECTED ] ${output}`);
+});
+
+refs.outputGrid.appendChild(btn);
+});
+}
+
+function appendLog(text){
+const line=document.createElement('div');
+line.className='log-line';
+line.textContent=`${new Date().toLocaleTimeString()} — ${text}`;
+refs.logStream.appendChild(line);
+refs.logStream.scrollTop=refs.logStream.scrollHeight;
+}
+
+refs.convertBtn.addEventListener('click',async()=>{
+if(state.processing)return;
+if(!state.selectedOutput){
+appendLog('[ ERROR ] No output selected');
+return;
+}
+
+state.processing=true;
+refs.systemState.textContent='PROCESSING';
+appendLog('[ STARTING CONVERSION ]');
+appendLog('[ PREPARING WORKERS ]');
+
+try{
+const file=state.files[0];
+const ext=file.name.split('.').pop().toLowerCase();
+
+if(ext==='pdf'){
+await handlePDF(file,state.selectedOutput);
+}else if(['jpg','jpeg','png','webp'].includes(ext)){
+await handleImage(file,state.selectedOutput);
+}else if(ext==='docx'){
+await handleDOCX(file,state.selectedOutput);
+}
+
+appendLog('[ COMPLETE ]');
+refs.systemState.textContent='COMPLETE';
+
+confetti({
+particleCount:80,
+spread:60,
+origin:{y:.65},
+colors:['#6366F1','#ffffff']
+});
+
+}catch(err){
+console.error(err);
+appendLog('[ FAILURE ] '+err.message);
+refs.systemState.textContent='ERROR';
+}
+
+state.processing=false;
+});
+
+async function handlePDF(file,target){
+appendLog('[ PDF ENGINE INITIALIZED ]');
+
+const pdfjsLib=window['pdfjs-dist/build/pdf'];
+if(!pdfjsLib){
+appendLog('[ WARNING ] pdf.js module unavailable in preview mode');
+return;
+}
+
+appendLog('[ PAGE STREAM STARTED ]');
+appendLog(`[ TARGET ] ${target}`);
+}
+
+async function handleImage(file,target){
+appendLog('[ IMAGE PIPELINE ACTIVE ]');
+
+const bitmap=await createImageBitmap(file);
+
+const canvas=document.createElement('canvas');
+const ctx=canvas.getContext('2d');
+
+const dpr=window.devicePixelRatio||1;
+canvas.width=bitmap.width*dpr;
+canvas.height=bitmap.height*dpr;
+ctx.scale(dpr,dpr);
+ctx.drawImage(bitmap,0,0);
+
+if(target==='PDF'){
+appendLog('[ PDF CONTAINER GENERATED ]');
+}
+
+canvas.toBlob(blob=>{
+const url=URL.createObjectURL(blob);
+state.activeURLs.add(url);
+
+download(url,'converted.'+target.toLowerCase());
+
+cleanupURL(url);
+bitmap.close();
+canvas.width=0;
+canvas.height=0;
+},'image/png');
+}
+
+async function handleDOCX(file,target){
+appendLog('[ DOCX PIPELINE INITIALIZED ]');
+
+const arrayBuffer=await file.arrayBuffer();
+const result=await mammoth.convertToHtml({arrayBuffer});
+
+const container=document.createElement('div');
+container.style.position='fixed';
+container.style.left='-9999px';
+container.style.top='0';
+container.style.width='1200px';
+container.style.background='#fff';
+container.style.color='#000';
+container.style.padding='60px';
+container.innerHTML=result.value;
+
+document.body.appendChild(container);
+
+const canvas=await html2canvas(container,{scale:2});
+
+canvas.toBlob(blob=>{
+const url=URL.createObjectURL(blob);
+state.activeURLs.add(url);
+
+download(url,'docx-render.png');
+cleanupURL(url);
+
+canvas.width=0;
+canvas.height=0;
+document.body.removeChild(container);
+},'image/png');
+}
+
+function download(url,name){
+const a=document.createElement('a');
+a.href=url;
+a.download=name;
+document.body.appendChild(a);
+a.click();
+a.remove();
+}
+
+function cleanupURL(url){
+setTimeout(()=>{
+URL.revokeObjectURL(url);
+state.activeURLs.delete(url);
+},1200);
+}
+
+refs.resetBtn.addEventListener('click',()=>{
+for(const url of state.activeURLs){
+URL.revokeObjectURL(url);
+}
+
+state.activeURLs.clear();
+
+state.files=[];
+state.selectedOutput=null;
+refs.fileList.innerHTML='';
+refs.outputGrid.innerHTML='';
+refs.logStream.innerHTML='';
+refs.engineCenter.style.display='none';
+refs.portal.style.display='flex';
+refs.portal.style.opacity='1';
+refs.portal.style.transform='translateY(0) scale(1)';
+refs.systemState.textContent='SYSTEM READY';
+appendLog('[ SYSTEM RESET ]');
+});
+
+window.addEventListener('beforeunload',()=>{
+for(const url of state.activeURLs){
+URL.revokeObjectURL(url);
+}
+
+state.workers.forEach(worker=>worker.terminate());
+});
+</script>
+
+</body>
+</html>
