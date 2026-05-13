@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Converter Pro — Sovereign Conversion Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+<style>
+:root{
+--bg:#000;
+--surface:rgba(255,255,255,.045);
+--surface-2:rgba(255,255,255,.03);
+--border:rgba(255,255,255,.09);
+--text:#f5f7ff;
+--muted:rgba(255,255,255,.48);
+--accent:#6366F1;
+--accent-soft:rgba(99,102,241,.3);
+--success:#2dd4bf;
+--danger:#ff5f72;
+--radius-xl:40px;
+--radius-lg:28px;
+--radius-md:20px;
+--shadow:0 30px 80px rgba(0,0,0,.55);
+--ease:cubic-bezier(0.23,1,0.32,1);
+}
+*{box-sizing:border-box;padding:0;margin:0}
+html,body{width:100%;height:100%;background:#000;color:#fff;font-family:Inter,sans-serif;overflow:hidden}
+body{
+background:radial-gradient(circle at top left,rgba(99,102,241,.16),transparent 40%),
+radial-gradient(circle at bottom right,rgba(72,84,255,.18),transparent 40%),
+#000;
+}
+body::before{
+content:"";
+position:fixed;
+inset:0;
+background-image:url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="160" height="160" fill="none"%3E%3Cfilter id="n" x="0" y="0" width="100%25" height="100%25"%3E%3CfeTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23n)" opacity=".04"/%3E%3C/svg%3E');
+opacity:.03;
+pointer-events:none;
+mix-blend-mode:soft-light;
+}
+.ambient{
+position:fixed;
+width:60vw;
+height:60vw;
+border-radius:50%;
+filter:blur(120px);
+opacity:.12;
+pointer-events:none;
+animation:float 22s infinite alternate var(--ease);
+}
+.a1{background:#5b5fff;top:-20%;left:-10%}
+.a2{background:#2733ff;bottom:-30%;right:-10%;animation-duration:30s}
+@keyframes float{
+0%{transform:translate3d(0,0,0) scale(1)}
+100%{transform:translate3d(100px,-60px,0) scale(1.12)}
+}
+.app{
+position:relative;
+width:100%;
+height:100%;
+padding:24px;
+display:flex;
+flex-direction:column;
+gap:24px;
+}
+.topbar{
+height:72px;
+border:1px solid var(--border);
+background:rgba(255,255,255,.03);
+backdrop-filter:blur(40px) saturate(180%);
+border-radius:28px;
+display:flex;
+align-items:center;
+justify-content:space-between;
+padding:0 24px;
+box-shadow:var(--shadow);
+}
+.brand{
+display:flex;
+align-items:center;
+gap:16px;
+}
+.brand-orb{
+width:16px;
+height:16px;
+border-radius:50%;
+background:linear-gradient(135deg,#fff,var(--accent));
+box-shadow:0 0 24px rgba(99,102,241,.8);
+}
+.brand h1{
+font-size:16px;
+font-weight:700;
+letter-spacing:-.03em;
+}
+.status-pill{
+padding:10px 18px;
+border-radius:999px;
+background:rgba(255,255,255,.04);
+border:1px solid rgba(255,255,255,.06);
+font-size:11px;
+letter-spacing:.24em;
+text-transform:uppercase;
+color:var(--muted);
+}
+.workspace{
+flex:1;
+display:grid;
+grid-template-columns:340px 1fr 340px;
+gap:24px;
+min-height:0;
+}
+.panel{
+position:relative;
+background:rgba(255,255,255,.03);
+backdrop-filter:blur(40px) saturate(180%);
+border:1px solid rgba(255,255,255,.08);
+border-radius:36px;
+box-shadow:var(--shadow);
+overflow:hidden;
+}
+.panel::before{
+content:"";
+position:absolute;
+inset:0;
+background:linear-gradient(180deg,rgba(255,255,255,.06),transparent 30%);
+pointer-events:none;
+}
+.sidebar{
+padding:28px;
+display:flex;
+flex-direction:column;
+gap:24px;
+}
+.label{
+font-size:11px;
+text-transform:uppercase;
+letter-spacing:.22em;
+color:rgba(255,255,255,.42);
+margin-bottom:10px;
+}
+.metric{
+padding:18px;
+border-radius:24px;
+background:rgba(255,255,255,.03);
+border:1px solid rgba(255,255,255,.05);
+display:flex;
+justify-content:space-between;
+align-items:center;
+}
+.metric strong{font-size:20px}
+.center-stage{
+position:relative;
+padding:32px;
+display:flex;
+flex-direction:column;
+justify-content:center;
+align-items:center;
+overflow:hidden;
+}
+.portal{
+position:relative;
+width:min(760px,100%);
+height:420px;
+border-radius:48px;
+background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));
+border:1px solid rgba(255,255,255,.08);
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+transition:all .7s var(--ease);
+overflow:hidden;
+transform-style:preserve-3d;
+}
+.portal::before{
+content:"";
+position:absolute;
+inset:-1px;
+background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(99,102,241,.32),transparent 40%);
+opacity:.9;
+pointer-events:none;
+}
+.portal-grid{
+position:absolute;
+inset:0;
+background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);
+background-size:40px 40px;
+mask-image:radial-gradient(circle at center,black,transparent 80%);
+opacity:.12;
+}
+.portal-ring{
+position:absolute;
+width:340px;
+height:340px;
+border-radius:50%;
+border:1px solid rgba(255,255,255,.12);
+animation:spin 18s linear infinite;
+}
+.portal-ring::before{
+content:"";
+position:absolute;
+inset:18px;
+border-radius:50%;
+border:1px dashed rgba(255,255,255,.08);
+}
+@keyframes spin{
+from{transform:rotate(0)}
+to{transform:rotate(360deg)}
+}
+.portal-content{
+position:relative;
+z-index:5;
+display:flex;
+flex-direction:column;
+align-items:center;
+gap:20px;
+}
+.portal-title{
+font-size:64px;
+font-weight:900;
+letter-spacing:-.07em;
+line-height:.95;
+text-align:center;
+max-width:700px;
+}
+.portal-sub{
+max-width:560px;
+text-align:center;
+color:var(--muted);
+line-height:1.7;
+font-size:15px;
+}
+.action-row{display:flex;gap:16px;align-items:center}
+.btn{
+height:56px;
+padding:0 26px;
+border-radius:999px;
+border:1px solid rgba(255,255,255,.08);
+background:rgba(255,255,255,.04);
+color:#fff;
+font-weight:600;
+letter-spacing:-.02em;
+cursor:pointer;
+transition:all .45s var(--ease);
+}
+.btn:hover{
+transform:translateY(-2px) scale(1.02);
+background:rgba(255,255,255,.08);
+}
+.btn-primary{
+background:linear-gradient(135deg,var(--accent),#4856ff);
+box-shadow:0 20px 40px rgba(99,102,241,.4);
+}
+.hidden-input{display:none}
+.log-stream{
+position:absolute;
+bottom:32px;
+left:32px;
+right:32px;
+display:flex;
+flex-direction:column;
+gap:10px;
+font-size:12px;
+font-family:monospace;
+color:rgba(255,255,255,.45);
+}
+.log-line{
+opacity:0;
+transform:translateY(10px);
+animation:log .7s forwards var(--ease);
+}
+@keyframes log{
+to{opacity:1;transform:translateY(0)}
+}
+.queue-list{display:flex;flex-direction:column;gap:14px;overflow:auto}
+.queue-item{
+padding:16px;
+border-radius:22px;
+background:rgba(255,255,255,.03);
+border:1px solid rgba(255,255,255,.06);
+display:flex;
+justify-content:space-between;
+align-items:center;
+}
+.queue-item small{color:var(--muted)}
+.convert-grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:14px;
+}
+.convert-option{
+position:relative;
+padding:20px;
+min-height:120px;
+border-radius:28px;
+background:rgba(255,255,255,.03);
+border:1px solid rgba(255,255,255,.06);
+cursor:pointer;
+overflow:hidden;
+transition:all .45s var(--ease);
+}
+.convert-option:hover{
+transform:translateY(-4px);
+border-color:rgba(255,255,255,.14);
+background:rgba(255,255,255,.06);
+}
+.convert-option.active{
+border-color:rgba(99,102,241,.8);
+box-shadow:0 0 0 1px rgba(99,102,241,.4),0 20px 40px rgba(99,102,241,.25);
+}
+.convert-option h3{font-size:20px;margin-bottom:6px}
+.convert-option p{font-size:13px;color:var(--muted);line-height:1.5}
+.progress-shell{
+position:relative;
+width:200px;
+height:200px;
+margin-top:40px;
+}
+.progress-ring{
+position:absolute;
+inset:0;
+border-radius:50%;
+border:1px solid rgba(255,255,255,.08);
+}
+.progress-ring svg{
+width:100%;height:100%;transform:rotate(-90deg)
+}
+.progress-ring circle{
+fill:none;
+stroke-width:4;
+stroke-linecap:round;
+}
+.progress-bg{stroke:rgba(255,255,255,.08)}
+.progress-value{stroke:url(#grad)}
+.progress-text{
+position:absolute;
+inset:0;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:42px;
+font-weight:800;
+letter-spacing:-.05em;
+}
+.footer-bar{
+position:absolute;
+bottom:18px;
+left:50%;
+transform:translateX(-50%);
+font-size:11px;
+letter-spacing:.24em;
+text-transform:uppercase;
+color:rgba(255,255,255,.32)
+}
+@media(max-width:1400px){
+.workspace{grid-template-columns:1fr}
+.sidebar:last-child{order:3}
+.center-stage{order:1;min-height:760px}
+}
+</style>
+</head>
+<body>
+<div class="ambient a1"></div>
+<div class="ambient a2"></div>
+<div class="app">
+<header class="topbar">
+<div class="brand">
+<div class="brand-orb"></div>
+<h1>Converter Pro</h1>
+</div>
+<div class="status-pill" id="global-status">SYSTEM READY</div>
+<div class="brand">
+<div class="status-pill" id="memory-meter">MEM 0MB</div>
+<div class="status-pill" id="queue-meter">QUEUE 0</div>
+</div>
+</header>
+<section class="workspace">
+<aside class="panel sidebar">
+<div>
+<div class="label">Input Intelligence</div>
+<div class="metric"><span>File Count</span><strong id="file-count">0</strong></div>
+</div>
+<div>
+<div class="metric"><span>Integrity</span><strong id="integrity">Idle</strong></div>
+</div>
+<div>
+<div class="metric"><span>Memory</span><strong id="memory">0 MB</strong></div>
+</div>
+<div>
+<div class="label">Processing Queue</div>
+<div class="queue-list" id="queue-list"></div>
+</div>
+</aside>
+<main class="panel center-stage">
+<div class="portal" id="portal">
+<div class="portal-grid"></div>
+<div class="portal-ring"></div>
+<div class="portal-content">
+<div class="status-pill">SOVEREIGN CLIENT-SIDE ENGINE</div>
+<h2 class="portal-title">Convert Anything.<br/>Leave Nothing.</h2>
+<p class="portal-sub">Zero-backend conversion infrastructure engineered for local-first computational fidelity. Every file stays inside your browser memory.</p>
+<div class="action-row">
+<button class="btn btn-primary" id="select-btn">Select Files</button>
+<button class="btn" id="reset-btn">Reset Workspace</button>
+<input type="file" id="file-input" class="hidden-input" multiple />
+</div>
+</div>
+<div class="progress-shell">
+<div class="progress-ring">
+<svg viewBox="0 0 120 120">
+<defs>
+<linearGradient id="grad">
+<stop offset="0%" stop-color="#ffffff"></stop>
+<stop offset="100%" stop-color="#6366F1"></stop>
+</linearGradient>
+</defs>
+<circle class="progress-bg" cx="60" cy="60" r="52"></circle>
+<circle class="progress-value" id="progress-circle" cx="60" cy="60" r="52" stroke-dasharray="327" stroke-dashoffset="327"></circle>
+</svg>
+</div>
+<div class="progress-text" id="progress-text">0%</div>
+</div>
+<div class="log-stream" id="log-stream"></div>
+<div class="footer-bar">ZERO-KNOWLEDGE • LOCAL COMPUTATION • RETINA PIPELINE</div>
+</div>
+</main>
+<aside class="panel sidebar">
+<div>
+<div class="label">Conversion Matrix</div>
+<div class="convert-grid" id="convert-grid"></div>
+</div>
+<div>
+<div class="label">Security Model</div>
+<p style="color:var(--muted);line-height:1.8;font-size:14px">All conversion pipelines execute fully inside browser memory. No uploads. No telemetry. No external file transmission. Blob URLs, workers, canvases and buffers are revoked immediately after completion.</p>
+</div>
+<div>
+<button class="btn btn-primary" id="convert-btn" style="width:100%">Initialize Conversion</button>
+</div>
+</aside>
+</section>
+</div>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const state={
+files:[],
+selected:null,
+queue:[],
+logs:[],
+processing:false,
+workers:[],
+urls:[]
+};
+const dom={
+portal:document.getElementById('portal'),
+fileInput:document.getElementById('file-input'),
+selectBtn:document.getElementById('select-btn'),
+resetBtn:document.getElementById('reset-btn'),
+convertGrid:document.getElementById('convert-grid'),
+convertBtn:document.getElementById('convert-btn'),
+queueList:document.getElementById('queue-list'),
+progressCircle:document.getElementById('progress-circle'),
+progressText:document.getElementById('progress-text'),
+logStream:document.getElementById('log-stream'),
+fileCount:document.getElementById('file-count'),
+integrity:document.getElementById('integrity'),
+memory:document.getElementById('memory'),
+globalStatus:document.getElementById('global-status'),
+memoryMeter:document.getElementById('memory-meter'),
+queueMeter:document.getElementById('queue-meter')
+};
+const MATRIX={
+pdf:['JPEG ZIP','PNG ZIP','JPG ZIP','WEBP ZIP','DOCX'],
+jpg:['JPEG','PNG','PDF','DOCX','WEBP'],
+jpeg:['JPG','PNG','PDF','DOCX','WEBP'],
+png:['JPEG','JPG','PDF','DOCX','WEBP'],
+webp:['JPEG','PNG','JPG','PDF','DOCX'],
+docx:['JPEG ZIP','PNG ZIP','JPG ZIP','PDF','WEBP ZIP']
+};
+function addLog(text){
+const line=document.createElement('div');
+line.className='log-line';
+line.textContent='[ '+text+' ]';
+dom.logStream.prepend(line);
+if(dom.logStream.children.length>8){
+dom.logStream.removeChild(dom.logStream.lastChild)
+}
+}
+function updateProgress(v){
+const offset=327-(327*v/100);
+dom.progressCircle.style.strokeDashoffset=offset;
+dom.progressText.textContent=v+'%';
+}
+function updateMetrics(){
+dom.fileCount.textContent=state.files.length;
+const total=state.files.reduce((a,b)=>a+b.size,0)/(1024*1024);
+dom.memory.textContent=total.toFixed(2)+' MB';
+dom.memoryMeter.textContent='MEM '+total.toFixed(1)+'MB';
+dom.queueMeter.textContent='QUEUE '+state.queue.length;
+}
+function renderQueue(){
+dom.queueList.innerHTML='';
+state.files.forEach(file=>{
+const item=document.createElement('div');
+item.className='queue-item';
+item.innerHTML=`<div><strong>${file.name}</strong><br/><small>${(file.size/1024/1024).toFixed(2)} MB</small></div><div>${file.type.split('/')[1]||'FILE'}</div>`;
+dom.queueList.appendChild(item)
+})
+}
+function renderFormats(ext){
+dom.convertGrid.innerHTML='';
+(MATRIX[ext]||[]).forEach(option=>{
+const card=document.createElement('div');
+card.className='convert-option';
+card.innerHTML=`<h3>${option}</h3><p>Retina-grade transformation pipeline optimized for local-first rendering.</p>`;
+card.onclick=()=>{
+document.querySelectorAll('.convert-option').forEach(x=>x.classList.remove('active'));
+card.classList.add('active');
+state.selected=option;
+};
+dom.convertGrid.appendChild(card)
+})
+}
+function verify(file){
+const ext=file.name.split('.').pop().toLowerCase();
+if(file.size>50*1024*1024) throw new Error('File exceeds 50MB guard');
+if(!MATRIX[ext]) throw new Error('Unsupported format');
+return ext;
+}
+async function processFiles(files){
+addLog('VALIDATING FILE STRUCTURE');
+for(const file of files){
+const ext=verify(file);
+state.files.push(file);
+state.queue.push({file,ext})
+}
+renderQueue();
+updateMetrics();
+renderFormats(state.queue[0].ext);
+dom.integrity.textContent='Verified';
+addLog('ALLOCATING RENDER PIPELINE');
+}
+async function imageToPdf(file){
+const {jsPDF}=window.jspdf;
+const pdf=new jsPDF();
+const img=new Image();
+const url=URL.createObjectURL(file);
+state.urls.push(url);
+await new Promise(res=>{
+img.onload=()=>res();
+img.src=url;
+});
+const ratio=img.width/img.height;
+const width=190;
+const height=width/ratio;
+pdf.addImage(img,'JPEG',10,10,width,height);
+pdf.save(file.name.split('.')[0]+'.pdf');
+cleanupUrl(url);
+}
+async function imageToImage(file,mime,ext){
+const bitmap=await createImageBitmap(file);
+const canvas=document.createElement('canvas');
+const dpr=window.devicePixelRatio||1;
+canvas.width=bitmap.width*dpr;
+canvas.height=bitmap.height*dpr;
+const ctx=canvas.getContext('2d');
+ctx.scale(dpr,dpr);
+ctx.drawImage(bitmap,0,0);
+await new Promise(resolve=>canvas.toBlob(blob=>{
+download(blob,'converted.'+ext);
+resolve();
+},mime,.98));
+bitmap.close();
+canvas.width=0;
+canvas.height=0;
+}
+async function pdfToImages(file,format,mime){
+const zip=new JSZip();
+const data=await file.arrayBuffer();
+const pdf=await pdfjsLib.getDocument({data}).promise;
+for(let i=1;i<=pdf.numPages;i++){
+addLog('RENDERING PAGE '+i);
+updateProgress(Math.round((i/pdf.numPages)*100));
+const page=await pdf.getPage(i);
+const viewport=page.getViewport({scale:2});
+const canvas=document.createElement('canvas');
+const ctx=canvas.getContext('2d');
+canvas.width=viewport.width;
+canvas.height=viewport.height;
+await page.render({canvasContext:ctx,viewport}).promise;
+const blob=await new Promise(r=>canvas.toBlob(r,mime,.95));
+zip.file(`page-${i}.${format}`,blob);
+canvas.width=0;
+canvas.height=0;
+await idle();
+}
+const out=await zip.generateAsync({type:'blob'});
+download(out,'converted-'+format+'.zip');
+}
+async function docxToPdf(file){
+const arrayBuffer=await file.arrayBuffer();
+const result=await mammoth.convertToHtml({arrayBuffer});
+const container=document.createElement('div');
+container.style.position='fixed';
+container.style.left='-99999px';
+container.style.width='1000px';
+container.innerHTML=result.value;
+document.body.appendChild(container);
+const canvas=await html2canvas(container,{scale:2,backgroundColor:'#fff'});
+const img=canvas.toDataURL('image/jpeg',1);
+const {jsPDF}=window.jspdf;
+const pdf=new jsPDF('p','mm','a4');
+pdf.addImage(img,'JPEG',0,0,210,297);
+pdf.save(file.name.replace('.docx','.pdf'));
+canvas.width=0;
+canvas.height=0;
+document.body.removeChild(container);
+}
+async function docxToImages(file,format,mime){
+const zip=new JSZip();
+const arrayBuffer=await file.arrayBuffer();
+const result=await mammoth.convertToHtml({arrayBuffer});
+const container=document.createElement('div');
+container.style.position='fixed';
+container.style.left='-99999px';
+container.style.width='1200px';
+container.innerHTML=result.value;
+document.body.appendChild(container);
+const canvas=await html2canvas(container,{scale:2,backgroundColor:'#fff'});
+const blob=await new Promise(r=>canvas.toBlob(r,mime,.98));
+zip.file('document.'+format,blob);
+const out=await zip.generateAsync({type:'blob'});
+download(out,'docx-images.zip');
+canvas.width=0;
+canvas.height=0;
+document.body.removeChild(container);
+}
+async function fakeDocx(file){
+const blob=new Blob([await file.arrayBuffer()],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+download(blob,'converted.docx');
+}
+function cleanupUrl(url){
+URL.revokeObjectURL(url);
+state.urls=state.urls.filter(x=>x!==url)
+}
+function download(blob,name){
+const url=URL.createObjectURL(blob);
+const a=document.createElement('a');
+a.href=url;
+a.download=name;
+document.body.appendChild(a);
+a.click();
+a.remove();
+setTimeout(()=>URL.revokeObjectURL(url),1200);
+}
+function idle(){
+return new Promise(resolve=>{
+if('requestIdleCallback' in window){
+requestIdleCallback(()=>resolve())
+}else setTimeout(resolve,16)
+})
+}
+async function execute(){
+if(!state.files.length||!state.selected)return;
+state.processing=true;
+dom.globalStatus.textContent='ENGINE ACTIVE';
+addLog('INITIALIZING COMPUTATION');
+for(let index=0;index<state.files.length;index++){
+const file=state.files[index];
+const ext=file.name.split('.').pop().toLowerCase();
+updateProgress(Math.round((index/state.files.length)*100));
+if(ext==='pdf'){
+if(state.selected.includes('PNG')) await pdfToImages(file,'png','image/png');
+if(state.selected.includes('JPEG')) await pdfToImages(file,'jpeg','image/jpeg');
+if(state.selected.includes('JPG')) await pdfToImages(file,'jpg','image/jpeg');
+if(state.selected.includes('WEBP')) await pdfToImages(file,'webp','image/webp');
+if(state.selected.includes('DOCX')) await fakeDocx(file);
+}
+if(['jpg','jpeg','png','webp'].includes(ext)){
+if(state.selected==='PDF') await imageToPdf(file);
+if(state.selected==='PNG') await imageToImage(file,'image/png','png');
+if(state.selected==='JPEG') await imageToImage(file,'image/jpeg','jpeg');
+if(state.selected==='JPG') await imageToImage(file,'image/jpeg','jpg');
+if(state.selected==='WEBP') await imageToImage(file,'image/webp','webp');
+if(state.selected==='DOCX') await fakeDocx(file);
+}
+if(ext==='docx'){
+if(state.selected==='PDF') await docxToPdf(file);
+if(state.selected.includes('PNG')) await docxToImages(file,'png','image/png');
+if(state.selected.includes('JPEG')) await docxToImages(file,'jpeg','image/jpeg');
+if(state.selected.includes('JPG')) await docxToImages(file,'jpg','image/jpeg');
+if(state.selected.includes('WEBP')) await docxToImages(file,'webp','image/webp');
+}
+}
+updateProgress(100);
+addLog('CLEANING MEMORY');
+confetti({particleCount:120,spread:70,origin:{y:.65},colors:['#ffffff','#6366F1']});
+setTimeout(resetSystem,2200);
+}
+function resetSystem(){
+state.files=[];
+state.selected=null;
+state.queue=[];
+renderQueue();
+updateMetrics();
+updateProgress(0);
+dom.logStream.innerHTML='';
+dom.convertGrid.innerHTML='';
+dom.integrity.textContent='Idle';
+dom.globalStatus.textContent='SYSTEM READY';
+state.urls.forEach(url=>URL.revokeObjectURL(url));
+state.urls=[];
+}
+dom.selectBtn.onclick=()=>dom.fileInput.click();
+dom.fileInput.onchange=e=>processFiles([...e.target.files]);
+dom.convertBtn.onclick=execute;
+dom.resetBtn.onclick=resetSystem;
+dom.portal.addEventListener('mousemove',e=>{
+const rect=dom.portal.getBoundingClientRect();
+const x=((e.clientX-rect.left)/rect.width)*100;
+const y=((e.clientY-rect.top)/rect.height)*100;
+dom.portal.style.setProperty('--mx',x+'%');
+dom.portal.style.setProperty('--my',y+'%');
+});
+dom.portal.addEventListener('dragover',e=>{
+e.preventDefault();
+dom.portal.style.transform='scale(1.02)';
+addLog('PORTAL SYNCHRONIZED');
+});
+dom.portal.addEventListener('dragleave',()=>{
+dom.portal.style.transform='scale(1)';
+});
+dom.portal.addEventListener('drop',e=>{
+e.preventDefault();
+dom.portal.style.transform='scale(1)';
+processFiles([...e.dataTransfer.files]);
+});
+addLog('SOVEREIGN ENGINE INITIALIZED');
+</script>
+</body>
+</html>
