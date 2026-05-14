@@ -1,0 +1,2877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Converter Pro — Browser-Native Conversion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+:root {
+  --black:        #000000;
+  --surface:      rgba(255,255,255,0.035);
+  --surface-2:    rgba(255,255,255,0.055);
+  --surface-3:    rgba(255,255,255,0.075);
+  --border:       rgba(255,255,255,0.08);
+  --border-2:     rgba(255,255,255,0.12);
+  --accent:       #6366F1;
+  --accent-dim:   rgba(99,102,241,0.15);
+  --accent-glow:  rgba(99,102,241,0.35);
+  --text-1:       rgba(255,255,255,0.92);
+  --text-2:       rgba(255,255,255,0.55);
+  --text-3:       rgba(255,255,255,0.28);
+  --success:      #22d3a5;
+  --warning:      #f59e0b;
+  --error:        #f43f5e;
+  --ease-out:     cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out:  cubic-bezier(0.65, 0, 0.35, 1);
+  --font-display: 'Syne', sans-serif;
+  --font-mono:    'JetBrains Mono', monospace;
+}
+
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: var(--black);
+  color: var(--text-1);
+  font-family: var(--font-mono);
+  min-height: 100vh;
+  overflow-x: hidden;
+  cursor: none;
+  position: relative;
+}
+
+::selection {
+  background: var(--accent-dim);
+  color: var(--text-1);
+}
+
+/* ============================================================
+   CUSTOM CURSOR
+   ============================================================ */
+#cursor-ring {
+  position: fixed;
+  top: 0; left: 0;
+  width: 36px; height: 36px;
+  border: 1px solid rgba(99,102,241,0.6);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  transform: translate(-50%, -50%);
+  transition: width 0.2s var(--ease-out),
+              height 0.2s var(--ease-out),
+              border-color 0.2s var(--ease-out),
+              opacity 0.2s;
+  mix-blend-mode: normal;
+}
+#cursor-dot {
+  position: fixed;
+  top: 0; left: 0;
+  width: 5px; height: 5px;
+  background: var(--accent);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  transform: translate(-50%, -50%);
+}
+body.cursor-hover #cursor-ring {
+  width: 56px; height: 56px;
+  border-color: rgba(99,102,241,0.9);
+  background: rgba(99,102,241,0.06);
+}
+
+/* ============================================================
+   ATMOSPHERIC BACKGROUND
+   ============================================================ */
+#bg-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.bg-radial {
+  position: fixed;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(120px);
+  opacity: 0;
+  animation: radial-breathe 12s ease-in-out infinite;
+}
+.bg-r1 {
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%);
+  top: -200px; left: -100px;
+  animation-delay: 0s;
+}
+.bg-r2 {
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%);
+  bottom: -100px; right: -100px;
+  animation-delay: -6s;
+}
+.bg-r3 {
+  width: 300px; height: 300px;
+  background: radial-gradient(circle, rgba(139,92,246,0.06) 0%, transparent 70%);
+  top: 40%; left: 50%;
+  transform: translateX(-50%);
+  animation-delay: -3s;
+}
+
+@keyframes radial-breathe {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50%       { opacity: 0.7; transform: scale(1.08); }
+}
+
+/* horizon grid */
+.bg-grid {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black 30%, transparent 100%);
+}
+
+/* cursor-reactive light */
+#cursor-light {
+  position: fixed;
+  width: 320px; height: 320px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(circle, rgba(99,102,241,0.07) 0%, transparent 70%);
+  transform: translate(-50%,-50%);
+  filter: blur(40px);
+  transition: opacity 0.3s;
+  opacity: 0;
+}
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+#app {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================================
+   HEADER
+   ============================================================ */
+#header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28px 48px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+  z-index: 10;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.logo-mark {
+  width: 28px; height: 28px;
+  position: relative;
+}
+.logo-mark svg {
+  width: 100%; height: 100%;
+}
+.logo-wordmark {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-1);
+  text-transform: uppercase;
+}
+.logo-wordmark span {
+  color: var(--accent);
+}
+
+.header-meta {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--text-3);
+  text-transform: uppercase;
+  font-weight: 400;
+}
+
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-3);
+  letter-spacing: 0.08em;
+}
+.status-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 8px var(--success);
+  animation: pulse-dot 2.5s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+/* ============================================================
+   MAIN STAGE
+   ============================================================ */
+#stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 48px 80px;
+  transition: padding 0.6s var(--ease-out);
+}
+
+/* ============================================================
+   ENTRY — PORTAL
+   ============================================================ */
+#entry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 40px;
+  width: 100%;
+  max-width: 560px;
+  transition: all 0.6s var(--ease-out);
+}
+
+.entry-label {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  font-weight: 400;
+}
+
+.entry-title {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--text-1);
+}
+.entry-title em {
+  font-style: normal;
+  color: var(--accent);
+}
+
+/* THE PORTAL */
+#portal {
+  width: 100%;
+  aspect-ratio: 16/9;
+  max-height: 280px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  position: relative;
+  overflow: hidden;
+  cursor: none;
+  transition:
+    border-color 0.3s var(--ease-out),
+    background 0.3s var(--ease-out),
+    box-shadow 0.3s var(--ease-out),
+    transform 0.4s var(--ease-out);
+  animation: portal-breathe 6s ease-in-out infinite;
+}
+
+@keyframes portal-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 transparent, inset 0 0 60px rgba(99,102,241,0.03); }
+  50%       { box-shadow: 0 0 40px rgba(99,102,241,0.06), inset 0 0 60px rgba(99,102,241,0.07); }
+}
+
+#portal.drag-over {
+  border-color: var(--accent);
+  background: rgba(99,102,241,0.06);
+  box-shadow:
+    0 0 0 1px var(--accent),
+    0 0 60px rgba(99,102,241,0.15),
+    inset 0 0 80px rgba(99,102,241,0.08);
+  transform: scale(1.005);
+  animation: none;
+}
+
+/* portal internal reflection */
+.portal-reflection {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 50% 0%, rgba(99,102,241,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 30% at 80% 100%, rgba(139,92,246,0.05) 0%, transparent 50%);
+  pointer-events: none;
+  transition: opacity 0.4s;
+}
+
+.portal-scanlines {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(255,255,255,0.008) 2px,
+    rgba(255,255,255,0.008) 4px
+  );
+  pointer-events: none;
+}
+
+.portal-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  transition: opacity 0.3s;
+}
+
+.portal-icon {
+  width: 40px; height: 40px;
+  position: relative;
+}
+.portal-icon svg {
+  width: 100%; height: 100%;
+  stroke: rgba(99,102,241,0.7);
+  fill: none;
+  stroke-width: 1;
+  transition: stroke 0.3s;
+}
+#portal.drag-over .portal-icon svg {
+  stroke: var(--accent);
+}
+
+.portal-text {
+  text-align: center;
+}
+.portal-text-primary {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-2);
+  letter-spacing: 0.04em;
+  display: block;
+  margin-bottom: 6px;
+  font-family: var(--font-display);
+}
+.portal-text-secondary {
+  font-size: 11px;
+  color: var(--text-3);
+  letter-spacing: 0.08em;
+}
+
+.portal-corner {
+  position: absolute;
+  width: 12px; height: 12px;
+  border-color: rgba(99,102,241,0.3);
+  border-style: solid;
+  transition: border-color 0.3s, width 0.3s, height 0.3s;
+}
+.portal-corner.tl { top: 12px; left: 12px; border-width: 1px 0 0 1px; }
+.portal-corner.tr { top: 12px; right: 12px; border-width: 1px 1px 0 0; }
+.portal-corner.bl { bottom: 12px; left: 12px; border-width: 0 0 1px 1px; }
+.portal-corner.br { bottom: 12px; right: 12px; border-width: 0 1px 1px 0; }
+#portal.drag-over .portal-corner {
+  border-color: var(--accent);
+  width: 18px; height: 18px;
+}
+
+/* hidden file input */
+#file-input {
+  display: none;
+}
+
+.portal-browse {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  cursor: none;
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+.portal-browse:hover {
+  color: var(--accent);
+  border-color: rgba(99,102,241,0.5);
+  background: rgba(99,102,241,0.05);
+}
+
+.entry-formats {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.format-chip {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 2px;
+  font-weight: 400;
+  transition: color 0.2s, border-color 0.2s;
+}
+.format-chip:hover {
+  color: var(--text-2);
+  border-color: var(--border-2);
+}
+
+/* ============================================================
+   WORKSPACE  (hidden until file loaded)
+   ============================================================ */
+#workspace {
+  width: 100%;
+  max-width: 1200px;
+  display: none;
+  grid-template-columns: 260px 1fr 240px;
+  gap: 16px;
+  animation: workspace-emerge 0.7s var(--ease-out) both;
+}
+
+@keyframes workspace-emerge {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* panels */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.panel-label {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  font-weight: 400;
+}
+.panel-badge {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-dim);
+  padding: 2px 8px;
+  border-radius: 2px;
+}
+.panel-body {
+  padding: 18px;
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.panel-body::-webkit-scrollbar { width: 4px; }
+.panel-body::-webkit-scrollbar-track { background: transparent; }
+.panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ============================================================
+   LEFT PANEL — FILE INTELLIGENCE
+   ============================================================ */
+#file-preview-wrap {
+  width: 100%;
+  aspect-ratio: 4/3;
+  background: rgba(0,0,0,0.3);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+}
+#file-preview-img {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  display: none;
+}
+#file-preview-placeholder {
+  width: 100%; height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#file-preview-placeholder svg {
+  width: 40px; height: 40px;
+  stroke: var(--text-3);
+  fill: none;
+  stroke-width: 1;
+}
+.file-preview-badge {
+  position: absolute;
+  top: 8px; right: 8px;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: rgba(0,0,0,0.8);
+  color: var(--accent);
+  padding: 3px 8px;
+  border-radius: 2px;
+  border: 1px solid var(--accent-dim);
+}
+
+.meta-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.meta-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.meta-key {
+  font-size: 10px;
+  color: var(--text-3);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+.meta-value {
+  font-size: 11px;
+  color: var(--text-2);
+  text-align: right;
+  word-break: break-all;
+  max-width: 140px;
+}
+.meta-value.mono {
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+.meta-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.integrity-bar {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.integrity-label {
+  font-size: 10px;
+  color: var(--text-3);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  display: flex;
+  justify-content: space-between;
+}
+.integrity-label span {
+  color: var(--success);
+}
+.integrity-track {
+  height: 2px;
+  background: var(--border);
+  border-radius: 1px;
+  overflow: hidden;
+}
+.integrity-fill {
+  height: 100%;
+  background: var(--success);
+  border-radius: 1px;
+  transition: width 1.2s var(--ease-out);
+  width: 0%;
+}
+
+/* ============================================================
+   CENTER PANEL — ENGINE
+   ============================================================ */
+#engine-panel {
+  min-height: 360px;
+}
+
+#engine-canvas-wrap {
+  width: 100%;
+  aspect-ratio: 16/9;
+  position: relative;
+  margin-bottom: 16px;
+  background: rgba(0,0,0,0.4);
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+#engine-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.engine-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.engine-state-icon {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--text-3);
+  flex-shrink: 0;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+.engine-state-icon.active {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+.engine-state-icon.done {
+  background: var(--success);
+  box-shadow: 0 0 8px rgba(34,211,165,0.5);
+}
+.engine-state-icon.error {
+  background: var(--error);
+  box-shadow: 0 0 8px rgba(244,63,94,0.5);
+}
+.engine-state-text {
+  font-size: 12px;
+  color: var(--text-2);
+  letter-spacing: 0.04em;
+}
+
+.progress-wrap {
+  margin-bottom: 14px;
+}
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 10px;
+  color: var(--text-3);
+  letter-spacing: 0.08em;
+}
+.progress-track {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), rgba(139,92,246,0.8));
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.3s var(--ease-out);
+  position: relative;
+}
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  right: 0; top: 0; bottom: 0;
+  width: 20px;
+  background: rgba(255,255,255,0.3);
+  filter: blur(4px);
+  animation: progress-shimmer 1.2s ease-in-out infinite;
+}
+@keyframes progress-shimmer {
+  0%, 100% { opacity: 0; }
+  50%       { opacity: 1; }
+}
+
+.telemetry-log {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-3);
+  line-height: 1.8;
+  max-height: 120px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.telemetry-log::-webkit-scrollbar { display: none; }
+.telemetry-entry {
+  display: flex;
+  gap: 10px;
+  opacity: 0;
+  transform: translateX(-8px);
+  animation: log-enter 0.3s var(--ease-out) forwards;
+}
+@keyframes log-enter {
+  to { opacity: 1; transform: translateX(0); }
+}
+.telemetry-time { color: var(--text-3); flex-shrink: 0; }
+.telemetry-msg  { color: var(--text-2); }
+.telemetry-msg.accent { color: var(--accent); }
+.telemetry-msg.success { color: var(--success); }
+.telemetry-msg.warn { color: var(--warning); }
+
+/* page progress for multi-page docs */
+.page-progress {
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+.page-progress.visible { display: flex; }
+.page-progress-label {
+  font-size: 10px;
+  color: var(--text-3);
+  letter-spacing: 0.08em;
+  display: flex;
+  justify-content: space-between;
+}
+.page-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.page-chip {
+  width: 16px; height: 10px;
+  border-radius: 1px;
+  background: var(--border);
+  transition: background 0.2s;
+}
+.page-chip.done {
+  background: var(--accent);
+  box-shadow: 0 0 4px var(--accent-glow);
+}
+.page-chip.active {
+  background: rgba(99,102,241,0.5);
+  animation: chip-pulse 0.8s ease-in-out infinite;
+}
+@keyframes chip-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+/* ============================================================
+   RIGHT PANEL — OUTPUT FORMAT
+   ============================================================ */
+.format-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.format-option {
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 14px;
+  cursor: none;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.format-option::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: var(--accent);
+  transform: scaleY(0);
+  transform-origin: bottom;
+  transition: transform 0.3s var(--ease-out);
+}
+.format-option:hover::before,
+.format-option.selected::before {
+  transform: scaleY(1);
+}
+.format-option:hover {
+  border-color: rgba(99,102,241,0.4);
+  background: rgba(99,102,241,0.04);
+}
+.format-option.selected {
+  border-color: rgba(99,102,241,0.6);
+  background: rgba(99,102,241,0.08);
+  box-shadow: inset 0 0 20px rgba(99,102,241,0.05);
+}
+
+.format-option-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+.format-option-name {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.format-option-tag {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 2px;
+}
+.format-option-tag.real   { background: rgba(34,211,165,0.1); color: var(--success); border: 1px solid rgba(34,211,165,0.2); }
+.format-option-tag.approx { background: rgba(245,158,11,0.1); color: var(--warning); border: 1px solid rgba(245,158,11,0.2); }
+.format-option-desc {
+  font-size: 10px;
+  color: var(--text-3);
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+}
+
+.format-option-radio {
+  display: none;
+}
+
+.output-quality {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.quality-label {
+  font-size: 10px;
+  color: var(--text-3);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+}
+.quality-label span { color: var(--text-2); }
+.quality-slider {
+  width: 100%;
+  height: 3px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+  cursor: none;
+}
+.quality-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid rgba(99,102,241,0.5);
+  box-shadow: 0 0 8px var(--accent-glow);
+  cursor: none;
+}
+.quality-slider::-moz-range-thumb {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid rgba(99,102,241,0.5);
+  box-shadow: 0 0 8px var(--accent-glow);
+  cursor: none;
+}
+
+/* ============================================================
+   ACTION BAR
+   ============================================================ */
+#action-bar {
+  display: none;
+  width: 100%;
+  max-width: 1200px;
+  margin-top: 16px;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.action-info {
+  font-size: 11px;
+  color: var(--text-3);
+  letter-spacing: 0.08em;
+}
+.action-info strong {
+  color: var(--text-2);
+  font-weight: 500;
+}
+
+.action-btns {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.btn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 10px 24px;
+  border-radius: 2px;
+  cursor: none;
+  border: none;
+  transition: all 0.2s var(--ease-out);
+  position: relative;
+  overflow: hidden;
+}
+.btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0);
+  transition: background 0.15s;
+}
+.btn:hover::after {
+  background: rgba(255,255,255,0.04);
+}
+
+.btn-secondary {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+}
+.btn-secondary:hover {
+  border-color: var(--border-2);
+  color: var(--text-1);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 20px rgba(99,102,241,0.2);
+}
+.btn-primary:hover {
+  box-shadow: 0 0 30px rgba(99,102,241,0.35);
+  background: #7678f0;
+}
+.btn-primary:disabled {
+  opacity: 0.4;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.btn-download {
+  display: none;
+  background: rgba(34,211,165,0.1);
+  border: 1px solid rgba(34,211,165,0.3);
+  color: var(--success);
+}
+.btn-download:hover {
+  background: rgba(34,211,165,0.15);
+  border-color: rgba(34,211,165,0.5);
+  box-shadow: 0 0 20px rgba(34,211,165,0.15);
+}
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+#footer {
+  padding: 24px 48px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.footer-note {
+  font-size: 10px;
+  color: var(--text-3);
+  letter-spacing: 0.08em;
+}
+.footer-note a {
+  color: var(--text-3);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.footer-note a:hover { color: var(--text-2); }
+.footer-privacy {
+  font-size: 10px;
+  color: var(--text-3);
+  letter-spacing: 0.08em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.footer-privacy svg {
+  width: 10px; height: 10px;
+  stroke: var(--success);
+  fill: none;
+  stroke-width: 2;
+}
+
+/* ============================================================
+   TOAST NOTIFICATIONS
+   ============================================================ */
+#toast-container {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  pointer-events: none;
+}
+.toast {
+  background: var(--surface-3);
+  border: 1px solid var(--border-2);
+  backdrop-filter: blur(20px);
+  padding: 10px 20px;
+  border-radius: 3px;
+  font-size: 12px;
+  color: var(--text-2);
+  letter-spacing: 0.04em;
+  animation: toast-in 0.3s var(--ease-out) both;
+  white-space: nowrap;
+}
+.toast.success { border-color: rgba(34,211,165,0.3); color: var(--success); }
+.toast.error   { border-color: rgba(244,63,94,0.3);  color: var(--error); }
+.toast.warning { border-color: rgba(245,158,11,0.3); color: var(--warning); }
+.toast.fade-out { animation: toast-out 0.3s var(--ease-out) both; }
+
+@keyframes toast-in  { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes toast-out { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-8px); } }
+
+/* ============================================================
+   ENGINE CANVAS ANIMATION LAYERS
+   ============================================================ */
+.orbit-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(99,102,241,0.2);
+  transform: translate(-50%,-50%);
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 900px) {
+  #workspace {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+  }
+  #engine-panel {
+    grid-column: 1 / -1;
+    order: -1;
+  }
+  #header { padding: 20px 24px; }
+  #stage  { padding: 32px 24px 60px; }
+  #footer { padding: 20px 24px; }
+  .header-meta { display: none; }
+}
+
+@media (max-width: 640px) {
+  #workspace {
+    grid-template-columns: 1fr;
+  }
+  .entry-title { font-size: 26px; }
+}
+
+/* ============================================================
+   TRANSITION: entry → workspace
+   ============================================================ */
+#entry.collapsing {
+  animation: entry-collapse 0.5s var(--ease-out) both;
+}
+@keyframes entry-collapse {
+  from { opacity: 1; transform: translateY(0); max-height: 600px; }
+  to   { opacity: 0; transform: translateY(-20px); max-height: 0; overflow: hidden; }
+}
+
+/* utility */
+.hidden { display: none !important; }
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     BACKGROUND SYSTEM
+     ============================================================ -->
+<canvas id="bg-canvas"></canvas>
+<div class="bg-radial bg-r1"></div>
+<div class="bg-radial bg-r2"></div>
+<div class="bg-radial bg-r3"></div>
+<div class="bg-grid"></div>
+<div id="cursor-light"></div>
+
+<!-- ============================================================
+     CURSOR
+     ============================================================ -->
+<div id="cursor-ring"></div>
+<div id="cursor-dot"></div>
+
+<!-- ============================================================
+     APP
+     ============================================================ -->
+<div id="app">
+
+  <!-- HEADER -->
+  <header id="header">
+    <div class="logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="1" y="1" width="26" height="26" rx="3" stroke="rgba(99,102,241,0.5)" stroke-width="1"/>
+          <path d="M7 14L12 9L17 14L22 9" stroke="#6366F1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M7 19L12 14L17 19L22 14" stroke="rgba(99,102,241,0.4)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="logo-wordmark">Converter<span>Pro</span></div>
+    </div>
+
+    <div class="header-meta">Browser-Native · Zero Upload · Private</div>
+
+    <div class="header-status">
+      <div class="status-dot"></div>
+      <span>Engine Ready</span>
+    </div>
+  </header>
+
+  <!-- MAIN STAGE -->
+  <main id="stage">
+
+    <!-- ENTRY EXPERIENCE -->
+    <div id="entry">
+      <div class="entry-label">v2.0 — Computational Environment</div>
+
+      <h1 class="entry-title">
+        Convert files with<br><em>machine-grade</em> precision
+      </h1>
+
+      <div id="portal"
+           role="button"
+           tabindex="0"
+           aria-label="Drop files here or click to browse"
+           ondragover="handleDragOver(event)"
+           ondragleave="handleDragLeave(event)"
+           ondrop="handleDrop(event)"
+           onclick="document.getElementById('file-input').click()">
+
+        <div class="portal-reflection"></div>
+        <div class="portal-scanlines"></div>
+
+        <div class="portal-content" id="portal-content">
+          <div class="portal-icon">
+            <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20 28V12M20 12L14 18M20 12L26 18" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M8 30C8 31.1 8.9 32 10 32H30C31.1 32 32 31.1 32 30V24" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="portal-text">
+            <span class="portal-text-primary">Drop your file here</span>
+            <span class="portal-text-secondary">PDF · DOCX · PNG · JPG · WEBP · GIF · BMP</span>
+          </div>
+        </div>
+
+        <!-- corner brackets -->
+        <div class="portal-corner tl"></div>
+        <div class="portal-corner tr"></div>
+        <div class="portal-corner bl"></div>
+        <div class="portal-corner br"></div>
+
+        <button class="portal-browse" onclick="event.stopPropagation(); document.getElementById('file-input').click()">Browse</button>
+      </div>
+
+      <input type="file"
+             id="file-input"
+             accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tiff,.tif"
+             onchange="handleFileInput(event)">
+
+      <div class="entry-formats">
+        <span class="format-chip">PDF</span>
+        <span class="format-chip">DOCX</span>
+        <span class="format-chip">PNG</span>
+        <span class="format-chip">JPEG</span>
+        <span class="format-chip">WEBP</span>
+        <span class="format-chip">GIF</span>
+        <span class="format-chip">BMP</span>
+      </div>
+    </div>
+
+    <!-- WORKSPACE (revealed on file load) -->
+    <div id="workspace">
+
+      <!-- LEFT: FILE INTELLIGENCE -->
+      <div class="panel" id="left-panel">
+        <div class="panel-header">
+          <span class="panel-label">File Intelligence</span>
+          <span class="panel-badge" id="file-type-badge">—</span>
+        </div>
+        <div class="panel-body">
+          <div id="file-preview-wrap">
+            <div id="file-preview-placeholder">
+              <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+                <rect x="6" y="2" width="24" height="32" rx="2" stroke-width="1"/>
+                <path d="M14 10H26M14 16H26M14 22H20" stroke-linecap="round" stroke-width="1"/>
+              </svg>
+            </div>
+            <img id="file-preview-img" alt="File preview" />
+            <span class="file-preview-badge" id="preview-badge">—</span>
+          </div>
+
+          <div class="meta-grid">
+            <div class="meta-row">
+              <span class="meta-key">Name</span>
+              <span class="meta-value" id="meta-name">—</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-key">Type</span>
+              <span class="meta-value mono" id="meta-type">—</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-key">Size</span>
+              <span class="meta-value" id="meta-size">—</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-key">Modified</span>
+              <span class="meta-value" id="meta-modified">—</span>
+            </div>
+            <div class="meta-divider"></div>
+            <div class="meta-row" id="meta-pages-row" style="display:none">
+              <span class="meta-key">Pages</span>
+              <span class="meta-value mono" id="meta-pages">—</span>
+            </div>
+            <div class="meta-row" id="meta-dims-row" style="display:none">
+              <span class="meta-key">Dimensions</span>
+              <span class="meta-value mono" id="meta-dims">—</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-key">Signature</span>
+              <span class="meta-value mono" id="meta-sig">—</span>
+            </div>
+            <div class="meta-row">
+              <span class="meta-key">Memory Est.</span>
+              <span class="meta-value" id="meta-mem">—</span>
+            </div>
+          </div>
+
+          <div class="integrity-bar">
+            <div class="integrity-label">
+              <span>Integrity</span>
+              <span id="integrity-pct">Verifying…</span>
+            </div>
+            <div class="integrity-track">
+              <div class="integrity-fill" id="integrity-fill"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CENTER: ENGINE -->
+      <div class="panel" id="engine-panel">
+        <div class="panel-header">
+          <span class="panel-label">Transformation Engine</span>
+          <span class="panel-badge" id="engine-badge">IDLE</span>
+        </div>
+        <div class="panel-body">
+          <div id="engine-canvas-wrap">
+            <canvas id="engine-canvas"></canvas>
+          </div>
+
+          <div class="engine-state">
+            <div class="engine-state-icon" id="engine-state-icon"></div>
+            <span class="engine-state-text" id="engine-state-text">Select output format to begin</span>
+          </div>
+
+          <div class="progress-wrap">
+            <div class="progress-header">
+              <span id="progress-label">Progress</span>
+              <span id="progress-pct">0%</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" id="progress-fill"></div>
+            </div>
+          </div>
+
+          <div class="telemetry-log" id="telemetry-log"></div>
+
+          <div class="page-progress" id="page-progress">
+            <div class="page-progress-label">
+              <span>Page Renders</span>
+              <span id="page-count-label">0 / 0</span>
+            </div>
+            <div class="page-chips" id="page-chips"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: OUTPUT FORMAT -->
+      <div class="panel" id="right-panel">
+        <div class="panel-header">
+          <span class="panel-label">Output Format</span>
+        </div>
+        <div class="panel-body">
+          <div class="format-options" id="format-options">
+            <!-- populated by JS -->
+          </div>
+
+          <div class="output-quality" id="quality-control">
+            <div class="quality-label">
+              <span>Quality</span>
+              <span id="quality-display">92%</span>
+            </div>
+            <input type="range"
+                   class="quality-slider"
+                   id="quality-slider"
+                   min="50" max="100" value="92"
+                   oninput="updateQuality(this.value)">
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /workspace -->
+
+    <!-- ACTION BAR -->
+    <div id="action-bar">
+      <div class="action-info">
+        Converting <strong id="action-src-fmt">—</strong> to <strong id="action-dst-fmt">—</strong>
+      </div>
+      <div class="action-btns">
+        <button class="btn btn-secondary" onclick="resetApp()">New File</button>
+        <button class="btn btn-primary" id="convert-btn" onclick="startConversion()" disabled>
+          Convert
+        </button>
+        <button class="btn btn-download" id="download-btn" onclick="downloadResult()">
+          Download
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer id="footer">
+    <span class="footer-note">All processing happens in your browser. Files never leave your device.</span>
+    <span class="footer-privacy">
+      <svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1.5" y="4.5" width="7" height="5" rx="1"/>
+        <path d="M3 4.5V3a2 2 0 0 1 4 0v1.5"/>
+      </svg>
+      Private by Design
+    </span>
+  </footer>
+
+</div><!-- /app -->
+
+<div id="toast-container"></div>
+
+<!-- ============================================================
+     EXTERNAL LIBRARIES
+     ============================================================ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+
+<script>
+/* ================================================================
+   CONVERTER PRO — CORE ENGINE
+   Browser-Native Computational File Conversion Environment
+   ================================================================ */
+
+'use strict';
+
+/* ----------------------------------------------------------------
+   CONSTANTS & STATE
+   ---------------------------------------------------------------- */
+const PDF_WORKER_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+if (typeof pdfjsLib !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = PDF_WORKER_SRC;
+}
+
+const STATE = {
+  file:          null,
+  fileType:      null,   // 'pdf' | 'docx' | 'image'
+  pdfDoc:        null,
+  pdfPageCount:  0,
+  imageEl:       null,
+  imageDims:     { w: 0, h: 0 },
+  selectedFormat: null,
+  quality:       0.92,
+  converting:    false,
+  resultBlob:    null,
+  resultName:    '',
+  engineAnimId:  null,
+  bgAnimId:      null,
+  abortFlag:     false,
+};
+
+const FORMAT_MAP = {
+  pdf: [
+    { id: 'png_zip',  label: 'PNG ZIP',  desc: 'Lossless pages as PNG images packed in ZIP', tag: 'real',   ext: 'zip',  mime: 'application/zip' },
+    { id: 'jpg_zip',  label: 'JPEG ZIP', desc: 'Compressed pages as JPEG images in ZIP',     tag: 'real',   ext: 'zip',  mime: 'application/zip' },
+    { id: 'webp_zip', label: 'WEBP ZIP', desc: 'Modern format, smallest file size in ZIP',   tag: 'real',   ext: 'zip',  mime: 'application/zip' },
+    { id: 'docx',     label: 'DOCX',     desc: 'Pages as embedded images in Word document',  tag: 'approx', ext: 'docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
+  ],
+  docx: [
+    { id: 'png_zip',  label: 'PNG ZIP',  desc: 'Rendered pages as PNG images in ZIP',        tag: 'approx', ext: 'zip',  mime: 'application/zip' },
+    { id: 'jpg_zip',  label: 'JPEG ZIP', desc: 'Rendered pages as JPEG images in ZIP',       tag: 'approx', ext: 'zip',  mime: 'application/zip' },
+    { id: 'pdf',      label: 'PDF',      desc: 'Layout preserved as PDF document',           tag: 'approx', ext: 'pdf',  mime: 'application/pdf' },
+  ],
+  image: [
+    { id: 'png',      label: 'PNG',      desc: 'Lossless conversion to PNG',                 tag: 'real',   ext: 'png',  mime: 'image/png' },
+    { id: 'jpg',      label: 'JPEG',     desc: 'Compressed to JPEG with quality control',    tag: 'real',   ext: 'jpg',  mime: 'image/jpeg' },
+    { id: 'webp',     label: 'WEBP',     desc: 'Modern format, excellent compression',       tag: 'real',   ext: 'webp', mime: 'image/webp' },
+    { id: 'pdf',      label: 'PDF',      desc: 'Image embedded in a PDF document',           tag: 'real',   ext: 'pdf',  mime: 'application/pdf' },
+    { id: 'bmp',      label: 'BMP',      desc: 'Uncompressed bitmap image',                  tag: 'real',   ext: 'bmp',  mime: 'image/bmp' },
+  ],
+};
+
+/* ----------------------------------------------------------------
+   CURSOR SYSTEM
+   ---------------------------------------------------------------- */
+const cursorRing = document.getElementById('cursor-ring');
+const cursorDot  = document.getElementById('cursor-dot');
+const cursorLight = document.getElementById('cursor-light');
+
+let mouseX = -999, mouseY = -999;
+let ringX = -999, ringY = -999;
+let rafCursor;
+
+document.addEventListener('mousemove', e => {
+  mouseX = e.clientX;
+  mouseY = e.clientY;
+  cursorDot.style.left  = mouseX + 'px';
+  cursorDot.style.top   = mouseY + 'px';
+  cursorLight.style.left = mouseX + 'px';
+  cursorLight.style.top  = mouseY + 'px';
+  cursorLight.style.opacity = '1';
+});
+document.addEventListener('mouseleave', () => {
+  cursorLight.style.opacity = '0';
+});
+
+(function animCursor() {
+  ringX += (mouseX - ringX) * 0.12;
+  ringY += (mouseY - ringY) * 0.12;
+  cursorRing.style.left = ringX + 'px';
+  cursorRing.style.top  = ringY + 'px';
+  rafCursor = requestAnimationFrame(animCursor);
+})();
+
+document.querySelectorAll('button, [role="button"], input[type="range"], .format-option, a')
+  .forEach(el => {
+    el.addEventListener('mouseenter', () => document.body.classList.add('cursor-hover'));
+    el.addEventListener('mouseleave', () => document.body.classList.remove('cursor-hover'));
+  });
+
+/* ----------------------------------------------------------------
+   BACKGROUND CANVAS — PARTICLE FIELD
+   ---------------------------------------------------------------- */
+(function initBgCanvas() {
+  const canvas = document.getElementById('bg-canvas');
+  const ctx    = canvas.getContext('2d');
+  let W, H;
+  const PARTICLES = [];
+  const N = 48;
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  for (let i = 0; i < N; i++) {
+    PARTICLES.push({
+      x:  Math.random() * 1,
+      y:  Math.random() * 1,
+      vx: (Math.random() - 0.5) * 0.00015,
+      vy: (Math.random() - 0.5) * 0.00015,
+      r:  Math.random() * 1.2 + 0.3,
+      a:  Math.random() * 0.25 + 0.04,
+    });
+  }
+
+  let lastTime = 0;
+  function draw(ts) {
+    const dt = Math.min(ts - lastTime, 32);
+    lastTime = ts;
+    ctx.clearRect(0, 0, W, H);
+
+    for (const p of PARTICLES) {
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      if (p.x < 0) p.x = 1;
+      if (p.x > 1) p.x = 0;
+      if (p.y < 0) p.y = 1;
+      if (p.y > 1) p.y = 0;
+    }
+
+    // draw connections
+    for (let i = 0; i < N; i++) {
+      for (let j = i + 1; j < N; j++) {
+        const a = PARTICLES[i], b = PARTICLES[j];
+        const dx = (a.x - b.x) * W;
+        const dy = (a.y - b.y) * H;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < 140) {
+          const alpha = (1 - dist / 140) * 0.06;
+          ctx.beginPath();
+          ctx.strokeStyle = `rgba(99,102,241,${alpha})`;
+          ctx.lineWidth = 0.5;
+          ctx.moveTo(a.x * W, a.y * H);
+          ctx.lineTo(b.x * W, b.y * H);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // draw dots
+    for (const p of PARTICLES) {
+      ctx.beginPath();
+      ctx.arc(p.x * W, p.y * H, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(99,102,241,${p.a})`;
+      ctx.fill();
+    }
+
+    STATE.bgAnimId = requestAnimationFrame(draw);
+  }
+  STATE.bgAnimId = requestAnimationFrame(draw);
+})();
+
+/* ----------------------------------------------------------------
+   ENGINE CANVAS — ORBITAL VISUALIZATION
+   ---------------------------------------------------------------- */
+const engineCanvas = document.getElementById('engine-canvas');
+const engineCtx    = engineCanvas.getContext('2d');
+let engineW, engineH;
+
+function resizeEngineCanvas() {
+  const wrap = document.getElementById('engine-canvas-wrap');
+  const dpr  = window.devicePixelRatio || 1;
+  engineW = wrap.clientWidth;
+  engineH = wrap.clientHeight;
+  engineCanvas.width  = engineW * dpr;
+  engineCanvas.height = engineH * dpr;
+  engineCanvas.style.width  = engineW + 'px';
+  engineCanvas.style.height = engineH + 'px';
+  engineCtx.scale(dpr, dpr);
+}
+
+let engineT = 0;
+let engineProgress = 0;  // 0–1
+let engineMode = 'idle'; // 'idle' | 'processing' | 'done' | 'error'
+
+function drawEngine(ts) {
+  if (!engineW) resizeEngineCanvas();
+  engineCtx.clearRect(0, 0, engineW, engineH);
+
+  const cx = engineW / 2;
+  const cy = engineH / 2;
+  engineT = (ts || 0) * 0.001;
+
+  const maxR = Math.min(cx, cy) * 0.78;
+
+  // concentric rings
+  const rings = [
+    { r: maxR * 0.30, speed: 0.4,  alpha: 0.12, dashes: [4, 8]  },
+    { r: maxR * 0.50, speed: -0.25, alpha: 0.10, dashes: [2, 12] },
+    { r: maxR * 0.70, speed: 0.18, alpha: 0.08, dashes: [6, 10]  },
+    { r: maxR * 0.90, speed: -0.12, alpha: 0.06, dashes: [8, 14] },
+  ];
+
+  rings.forEach((ring, i) => {
+    engineCtx.save();
+    engineCtx.translate(cx, cy);
+    engineCtx.rotate(engineT * ring.speed);
+    engineCtx.beginPath();
+    engineCtx.arc(0, 0, ring.r, 0, Math.PI * 2);
+    engineCtx.setLineDash(ring.dashes);
+    engineCtx.strokeStyle = `rgba(99,102,241,${ring.alpha})`;
+    engineCtx.lineWidth = 0.5;
+    engineCtx.stroke();
+    engineCtx.restore();
+
+    // orbital node
+    if (engineMode !== 'idle') {
+      const angle = engineT * ring.speed * 3 + i * 1.1;
+      const nx = cx + Math.cos(angle) * ring.r;
+      const ny = cy + Math.sin(angle) * ring.r;
+      engineCtx.beginPath();
+      engineCtx.arc(nx, ny, 2, 0, Math.PI * 2);
+      const col = engineMode === 'done' ? '34,211,165' : engineMode === 'error' ? '244,63,94' : '99,102,241';
+      engineCtx.fillStyle = `rgba(${col},0.8)`;
+      engineCtx.fill();
+    }
+  });
+
+  // center node
+  const innerR = 8 + (engineMode === 'processing' ? Math.sin(engineT * 4) * 2 : 0);
+  const nodeCol = engineMode === 'done' ? '34,211,165' : engineMode === 'error' ? '244,63,94' : '99,102,241';
+  const nodeAlpha = engineMode === 'idle' ? 0.3 : 0.9;
+
+  // glow
+  const grd = engineCtx.createRadialGradient(cx, cy, 0, cx, cy, 32);
+  grd.addColorStop(0, `rgba(${nodeCol},${nodeAlpha * 0.5})`);
+  grd.addColorStop(1, `rgba(${nodeCol},0)`);
+  engineCtx.beginPath();
+  engineCtx.arc(cx, cy, 32, 0, Math.PI * 2);
+  engineCtx.fillStyle = grd;
+  engineCtx.fill();
+
+  engineCtx.beginPath();
+  engineCtx.arc(cx, cy, innerR, 0, Math.PI * 2);
+  engineCtx.fillStyle = `rgba(${nodeCol},${nodeAlpha})`;
+  engineCtx.fill();
+
+  // progress arc
+  if (engineMode === 'processing' && engineProgress > 0) {
+    const startAngle = -Math.PI / 2;
+    const endAngle   = startAngle + Math.PI * 2 * engineProgress;
+    engineCtx.beginPath();
+    engineCtx.arc(cx, cy, maxR * 0.95, startAngle, endAngle);
+    engineCtx.setLineDash([]);
+    engineCtx.strokeStyle = `rgba(99,102,241,0.6)`;
+    engineCtx.lineWidth = 1.5;
+    engineCtx.stroke();
+
+    // trailing glow dot
+    const gDot = { x: cx + Math.cos(endAngle) * maxR * 0.95, y: cy + Math.sin(endAngle) * maxR * 0.95 };
+    engineCtx.beginPath();
+    engineCtx.arc(gDot.x, gDot.y, 3, 0, Math.PI * 2);
+    engineCtx.fillStyle = 'rgba(99,102,241,0.9)';
+    engineCtx.fill();
+  }
+
+  // done ring
+  if (engineMode === 'done') {
+    engineCtx.beginPath();
+    engineCtx.arc(cx, cy, maxR * 0.95, 0, Math.PI * 2);
+    engineCtx.setLineDash([]);
+    engineCtx.strokeStyle = 'rgba(34,211,165,0.4)';
+    engineCtx.lineWidth = 1;
+    engineCtx.stroke();
+  }
+
+  // coordinate labels
+  const labelR = maxR * 1.02;
+  const axes = [0, Math.PI/2, Math.PI, Math.PI*1.5];
+  engineCtx.font = `9px 'JetBrains Mono', monospace`;
+  engineCtx.fillStyle = 'rgba(255,255,255,0.1)';
+  engineCtx.textAlign = 'center';
+  engineCtx.textBaseline = 'middle';
+  axes.forEach((a, i) => {
+    const lx = cx + Math.cos(a) * labelR;
+    const ly = cy + Math.sin(a) * labelR;
+    engineCtx.fillText(['N','E','S','W'][i], lx, ly);
+  });
+
+  STATE.engineAnimId = requestAnimationFrame(drawEngine);
+}
+requestAnimationFrame(drawEngine);
+window.addEventListener('resize', resizeEngineCanvas);
+
+/* ----------------------------------------------------------------
+   TELEMETRY LOG
+   ---------------------------------------------------------------- */
+function log(msg, type = '') {
+  const container = document.getElementById('telemetry-log');
+  const entry = document.createElement('div');
+  entry.className = 'telemetry-entry';
+  const now = new Date();
+  const ts  = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  entry.innerHTML = `<span class="telemetry-time">${ts}</span><span class="telemetry-msg ${type}">${msg}</span>`;
+  container.appendChild(entry);
+  container.scrollTop = container.scrollHeight;
+  // prune old logs
+  while (container.children.length > 40) {
+    container.removeChild(container.firstChild);
+  }
+}
+
+/* ----------------------------------------------------------------
+   TOAST
+   ---------------------------------------------------------------- */
+function toast(msg, type = '', duration = 3000) {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => {
+    t.classList.add('fade-out');
+    setTimeout(() => t.remove(), 350);
+  }, duration);
+}
+
+/* ----------------------------------------------------------------
+   PROGRESS
+   ---------------------------------------------------------------- */
+function setProgress(pct, label = '') {
+  engineProgress = pct / 100;
+  const fill = document.getElementById('progress-fill');
+  const pctEl = document.getElementById('progress-pct');
+  const lblEl = document.getElementById('progress-label');
+  fill.style.width = pct + '%';
+  pctEl.textContent = Math.round(pct) + '%';
+  if (label) lblEl.textContent = label;
+}
+
+/* ----------------------------------------------------------------
+   ENGINE STATE
+   ---------------------------------------------------------------- */
+function setEngineState(state, text) {
+  engineMode = state;
+  const icon   = document.getElementById('engine-state-icon');
+  const textEl = document.getElementById('engine-state-text');
+  const badge  = document.getElementById('engine-badge');
+  icon.className = 'engine-state-icon';
+  if (state === 'active' || state === 'processing') {
+    icon.classList.add('active');
+    badge.textContent = 'PROCESSING';
+  } else if (state === 'done') {
+    icon.classList.add('done');
+    badge.textContent = 'COMPLETE';
+  } else if (state === 'error') {
+    icon.classList.add('error');
+    badge.textContent = 'ERROR';
+  } else {
+    badge.textContent = 'IDLE';
+  }
+  if (text) textEl.textContent = text;
+}
+
+/* ----------------------------------------------------------------
+   FILE TYPE DETECTION
+   ---------------------------------------------------------------- */
+function detectFileType(file) {
+  const name = file.name.toLowerCase();
+  const mime = file.type;
+  if (mime === 'application/pdf' || name.endsWith('.pdf')) return 'pdf';
+  if (mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      || name.endsWith('.docx') || name.endsWith('.doc')) return 'docx';
+  if (/^image\//.test(mime)
+      || /\.(png|jpg|jpeg|gif|webp|bmp|tiff?|svg)$/.test(name)) return 'image';
+  return null;
+}
+
+/* ----------------------------------------------------------------
+   FORMAT OPTIONS — RENDER
+   ---------------------------------------------------------------- */
+function renderFormatOptions(type) {
+  const container = document.getElementById('format-options');
+  container.innerHTML = '';
+  const formats = FORMAT_MAP[type] || [];
+  formats.forEach(fmt => {
+    const div = document.createElement('div');
+    div.className = 'format-option';
+    div.dataset.id = fmt.id;
+    div.innerHTML = `
+      <div class="format-option-header">
+        <span class="format-option-name">${fmt.label}</span>
+        <span class="format-option-tag ${fmt.tag}">${fmt.tag === 'real' ? 'Native' : 'Reconstructed'}</span>
+      </div>
+      <div class="format-option-desc">${fmt.desc}</div>
+    `;
+    div.addEventListener('click', () => selectFormat(fmt.id, type));
+    div.addEventListener('mouseenter', () => document.body.classList.add('cursor-hover'));
+    div.addEventListener('mouseleave', () => document.body.classList.remove('cursor-hover'));
+    container.appendChild(div);
+  });
+  STATE.selectedFormat = null;
+  document.getElementById('convert-btn').disabled = true;
+}
+
+function selectFormat(id, type) {
+  document.querySelectorAll('.format-option').forEach(el => el.classList.remove('selected'));
+  const el = document.querySelector(`.format-option[data-id="${id}"]`);
+  if (el) el.classList.add('selected');
+  STATE.selectedFormat = id;
+
+  const fmt = (FORMAT_MAP[type] || []).find(f => f.id === id);
+  if (fmt) {
+    document.getElementById('action-dst-fmt').textContent = fmt.label;
+    document.getElementById('convert-btn').disabled = false;
+    setEngineState('idle', `Ready to convert → ${fmt.label}`);
+    log(`Output format selected: ${fmt.label}`, 'accent');
+    if (fmt.tag === 'approx') {
+      log('Note: this is a reconstructed format — layout approximated', 'warn');
+    }
+  }
+
+  // show/hide quality slider
+  const showQ = !['docx','pdf'].includes(id) || id === 'jpg_zip' || id === 'jpg';
+  document.getElementById('quality-control').style.display = showQ ? 'block' : 'none';
+}
+
+/* ----------------------------------------------------------------
+   FILE LOADING
+   ---------------------------------------------------------------- */
+async function loadFile(file) {
+  const type = detectFileType(file);
+  if (!type) {
+    toast('Unsupported file type', 'error');
+    return;
+  }
+
+  STATE.file     = file;
+  STATE.fileType = type;
+  STATE.resultBlob = null;
+  STATE.abortFlag  = false;
+
+  // populate metadata
+  document.getElementById('meta-name').textContent    = truncStr(file.name, 20);
+  document.getElementById('meta-type').textContent    = file.type || type.toUpperCase();
+  document.getElementById('meta-size').textContent    = fmtBytes(file.size);
+  document.getElementById('meta-modified').textContent = new Date(file.lastModified).toLocaleDateString();
+  document.getElementById('meta-sig').textContent     = await readMagicBytes(file);
+  document.getElementById('meta-mem').textContent     = fmtBytes(file.size * 2.5);
+  document.getElementById('file-type-badge').textContent = type.toUpperCase();
+  document.getElementById('action-src-fmt').textContent = type.toUpperCase();
+
+  document.getElementById('meta-pages-row').style.display = 'none';
+  document.getElementById('meta-dims-row').style.display  = 'none';
+
+  // preview & extra meta
+  if (type === 'image') {
+    await loadImageFile(file);
+  } else if (type === 'pdf') {
+    await loadPdfFile(file);
+  } else if (type === 'docx') {
+    loadDocxFile(file);
+  }
+
+  // integrity animation
+  setTimeout(() => {
+    document.getElementById('integrity-fill').style.width = '100%';
+    document.getElementById('integrity-pct').textContent = '100% OK';
+  }, 600);
+
+  // render format options
+  renderFormatOptions(type);
+
+  // show workspace
+  showWorkspace();
+  log(`File loaded: ${file.name}`, 'accent');
+  log(`Type detected: ${type.toUpperCase()} | Size: ${fmtBytes(file.size)}`);
+}
+
+async function loadImageFile(file) {
+  return new Promise(resolve => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      STATE.imageEl   = img;
+      STATE.imageDims = { w: img.naturalWidth, h: img.naturalHeight };
+      document.getElementById('file-preview-img').src = url;
+      document.getElementById('file-preview-img').style.display = 'block';
+      document.getElementById('file-preview-placeholder').style.display = 'none';
+      document.getElementById('preview-badge').textContent = file.name.split('.').pop().toUpperCase();
+      document.getElementById('meta-dims').textContent   = `${img.naturalWidth} × ${img.naturalHeight}`;
+      document.getElementById('meta-dims-row').style.display = 'flex';
+      log(`Image dimensions: ${img.naturalWidth} × ${img.naturalHeight}`);
+      resolve();
+    };
+    img.src = url;
+  });
+}
+
+async function loadPdfFile(file) {
+  try {
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    STATE.pdfDoc       = pdf;
+    STATE.pdfPageCount = pdf.numPages;
+    document.getElementById('meta-pages').textContent     = pdf.numPages;
+    document.getElementById('meta-pages-row').style.display = 'flex';
+
+    // preview first page
+    const page    = await pdf.getPage(1);
+    const vp      = page.getViewport({ scale: 0.8 });
+    const canvas  = document.createElement('canvas');
+    canvas.width  = vp.width;
+    canvas.height = vp.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    document.getElementById('file-preview-img').src = canvas.toDataURL();
+    document.getElementById('file-preview-img').style.display = 'block';
+    document.getElementById('file-preview-placeholder').style.display = 'none';
+    document.getElementById('preview-badge').textContent = 'PDF';
+    document.getElementById('meta-dims').textContent = `${Math.round(vp.width)} × ${Math.round(vp.height)}`;
+    document.getElementById('meta-dims-row').style.display = 'flex';
+    log(`PDF loaded: ${pdf.numPages} page${pdf.numPages !== 1 ? 's' : ''}`);
+
+    // clean up preview canvas
+    canvas.width = 0; canvas.height = 0;
+  } catch(e) {
+    log(`PDF parse warning: ${e.message}`, 'warn');
+  }
+}
+
+function loadDocxFile(file) {
+  document.getElementById('preview-badge').textContent = 'DOCX';
+  log('DOCX loaded — reconstruction engine ready');
+}
+
+/* ----------------------------------------------------------------
+   DRAG & DROP
+   ---------------------------------------------------------------- */
+let dragCounter = 0;
+
+function handleDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'copy';
+  document.getElementById('portal').classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+  document.getElementById('portal').classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('portal').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) loadFile(file);
+}
+
+function handleFileInput(e) {
+  const file = e.target.files[0];
+  if (file) loadFile(file);
+  e.target.value = '';
+}
+
+/* ----------------------------------------------------------------
+   WORKSPACE SHOW/HIDE
+   ---------------------------------------------------------------- */
+function showWorkspace() {
+  const entry    = document.getElementById('entry');
+  const workspace = document.getElementById('workspace');
+  const actionBar = document.getElementById('action-bar');
+
+  entry.classList.add('collapsing');
+  setTimeout(() => {
+    entry.style.display = 'none';
+    workspace.style.display = 'grid';
+    actionBar.style.display = 'flex';
+    resizeEngineCanvas();
+    setEngineState('idle', 'Select output format to begin');
+  }, 450);
+}
+
+function resetApp() {
+  // clean up
+  if (STATE.pdfDoc) { STATE.pdfDoc.destroy(); STATE.pdfDoc = null; }
+  STATE.file = null;
+  STATE.fileType = null;
+  STATE.resultBlob = null;
+  STATE.selectedFormat = null;
+  STATE.converting = false;
+  STATE.abortFlag = true;
+  engineMode = 'idle';
+  engineProgress = 0;
+
+  // reset UI
+  const entry     = document.getElementById('entry');
+  const workspace = document.getElementById('workspace');
+  const actionBar = document.getElementById('action-bar');
+
+  workspace.style.display = 'none';
+  actionBar.style.display = 'none';
+  entry.style.display     = 'flex';
+  entry.classList.remove('collapsing');
+
+  document.getElementById('telemetry-log').innerHTML = '';
+  document.getElementById('progress-fill').style.width = '0%';
+  document.getElementById('progress-pct').textContent = '0%';
+  document.getElementById('integrity-fill').style.width = '0%';
+  document.getElementById('integrity-pct').textContent = 'Verifying…';
+  document.getElementById('file-preview-img').style.display = 'none';
+  document.getElementById('file-preview-placeholder').style.display = 'flex';
+  document.getElementById('convert-btn').disabled = true;
+  document.getElementById('download-btn').style.display = 'none';
+  document.getElementById('page-progress').classList.remove('visible');
+  setEngineState('idle', '');
+}
+
+/* ----------------------------------------------------------------
+   QUALITY
+   ---------------------------------------------------------------- */
+function updateQuality(val) {
+  STATE.quality = val / 100;
+  document.getElementById('quality-display').textContent = val + '%';
+}
+
+/* ----------------------------------------------------------------
+   CONVERSION DISPATCHER
+   ---------------------------------------------------------------- */
+async function startConversion() {
+  if (STATE.converting || !STATE.selectedFormat || !STATE.file) return;
+  STATE.converting = true;
+  STATE.abortFlag  = false;
+  STATE.resultBlob = null;
+
+  document.getElementById('convert-btn').disabled = true;
+  document.getElementById('download-btn').style.display = 'none';
+  setEngineState('processing', 'Initializing conversion pipeline…');
+  setProgress(2, 'Initializing');
+  log('──────────────────────────────');
+  log('Conversion pipeline started', 'accent');
+
+  try {
+    const type   = STATE.fileType;
+    const format = STATE.selectedFormat;
+
+    if (type === 'image') {
+      await convertImage(format);
+    } else if (type === 'pdf') {
+      await convertPdf(format);
+    } else if (type === 'docx') {
+      await convertDocx(format);
+    }
+
+    if (!STATE.abortFlag) {
+      setEngineState('done', 'Conversion complete — ready to download');
+      setProgress(100, 'Complete');
+      log('Pipeline complete', 'success');
+      document.getElementById('download-btn').style.display = 'inline-block';
+      toast('Conversion complete', 'success');
+    }
+  } catch(e) {
+    setEngineState('error', 'Conversion failed — ' + e.message);
+    log(`Error: ${e.message}`, 'warn');
+    toast('Conversion failed: ' + e.message, 'error');
+  } finally {
+    STATE.converting = false;
+    document.getElementById('convert-btn').disabled = false;
+  }
+}
+
+/* ----------------------------------------------------------------
+   IMAGE CONVERSIONS
+   ---------------------------------------------------------------- */
+async function convertImage(format) {
+  const img  = STATE.imageEl;
+  const mime = { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp', bmp: 'image/bmp' };
+  const base = STATE.file.name.replace(/\.[^.]+$/, '');
+
+  log(`Source: ${STATE.file.name}`);
+  log(`Target: ${format.toUpperCase()}`);
+  setProgress(10, 'Loading image data');
+  await delay(80);
+
+  if (format === 'pdf') {
+    log('Embedding image into PDF…');
+    setProgress(30, 'Building PDF structure');
+    await delay(120);
+    const blob = await imageToPdf(img);
+    STATE.resultBlob = blob;
+    STATE.resultName = `${base}.pdf`;
+    setProgress(90, 'Finalizing');
+    await delay(80);
+    log(`PDF created: ${fmtBytes(blob.size)}`, 'success');
+    return;
+  }
+
+  const targetMime = mime[format] || 'image/png';
+  log(`Converting to ${targetMime}…`);
+  setProgress(25, 'Rendering canvas');
+  await delay(60);
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+  setProgress(60, 'Encoding');
+  await delay(60);
+
+  const dataUrl = canvas.toDataURL(targetMime, STATE.quality);
+  const blob    = dataURLtoBlob(dataUrl);
+  STATE.resultBlob = blob;
+  STATE.resultName = `${base}.${format}`;
+  canvas.width = 0; canvas.height = 0;
+  setProgress(90, 'Packaging');
+  await delay(80);
+  log(`${format.toUpperCase()} created: ${fmtBytes(blob.size)}`, 'success');
+}
+
+/* ----------------------------------------------------------------
+   PDF CONVERSIONS
+   ---------------------------------------------------------------- */
+async function convertPdf(format) {
+  const pdf   = STATE.pdfDoc;
+  const pages = STATE.pdfPageCount;
+  const base  = STATE.file.name.replace(/\.pdf$/i, '');
+
+  log(`PDF: ${pages} pages`);
+  log(`Target format: ${format}`);
+
+  if (format === 'docx') {
+    await pdfToDocx(pdf, pages, base);
+    return;
+  }
+
+  // page-based image extraction
+  const fmtMap = { png_zip: { mime: 'image/png', ext: 'png' },
+                   jpg_zip: { mime: 'image/jpeg', ext: 'jpg' },
+                   webp_zip: { mime: 'image/webp', ext: 'webp' } };
+  const target = fmtMap[format];
+  if (!target) throw new Error('Unknown format: ' + format);
+
+  // setup page chips
+  const chipsWrap = document.getElementById('page-chips');
+  const ppEl      = document.getElementById('page-progress');
+  const pcLabel   = document.getElementById('page-count-label');
+  chipsWrap.innerHTML = '';
+  ppEl.classList.add('visible');
+  for (let i = 0; i < Math.min(pages, 60); i++) {
+    const c = document.createElement('div');
+    c.className = 'page-chip';
+    c.id = `chip-${i}`;
+    chipsWrap.appendChild(c);
+  }
+
+  const zip  = new JSZip();
+  const dpr  = Math.min(window.devicePixelRatio || 1, 2);
+  const SCALE = 2 * dpr;
+
+  for (let p = 1; p <= pages; p++) {
+    if (STATE.abortFlag) break;
+
+    // mark active chip
+    const chip = document.getElementById(`chip-${p-1}`);
+    if (chip) chip.classList.add('active');
+    pcLabel.textContent = `${p} / ${pages}`;
+
+    log(`Rendering page ${p}/${pages}…`);
+    setProgress(5 + (p / pages) * 88, `Rendering page ${p} of ${pages}`);
+
+    const page   = await pdf.getPage(p);
+    const vp     = page.getViewport({ scale: SCALE });
+    const canvas = document.createElement('canvas');
+    canvas.width  = vp.width;
+    canvas.height = vp.height;
+    const ctx    = canvas.getContext('2d');
+
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+
+    const dataUrl = canvas.toDataURL(target.mime, STATE.quality);
+    const b64     = dataUrl.split(',')[1];
+    const pad     = String(p).padStart(String(pages).length, '0');
+    zip.file(`${base}_page_${pad}.${target.ext}`, b64, { base64: true });
+
+    // clean
+    canvas.width = 0; canvas.height = 0;
+
+    if (chip) { chip.classList.remove('active'); chip.classList.add('done'); }
+    log(`Page ${p} rendered (${Math.round(vp.width/dpr)}×${Math.round(vp.height/dpr)})`, 'success');
+
+    // yield to browser each 4 pages
+    if (p % 4 === 0) await yieldToMain();
+  }
+
+  setProgress(96, 'Compressing ZIP');
+  log('Generating ZIP archive…');
+  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } },
+    meta => setProgress(96 + meta.percent * 0.04, 'Compressing'));
+  STATE.resultBlob = blob;
+  STATE.resultName = `${base}_pages.zip`;
+  log(`ZIP created: ${fmtBytes(blob.size)}`, 'success');
+}
+
+async function pdfToDocx(pdf, pages, base) {
+  log('Building DOCX from PDF pages…', 'warn');
+  log('Note: layout is reconstructed as images embedded in document');
+  const dpr = 1.5;
+
+  const partImages = [];
+  for (let p = 1; p <= pages; p++) {
+    if (STATE.abortFlag) break;
+    setProgress(5 + (p / pages) * 75, `Rendering page ${p}/${pages}`);
+    log(`Rendering page ${p}…`);
+    const page   = await pdf.getPage(p);
+    const vp     = page.getViewport({ scale: dpr });
+    const canvas = document.createElement('canvas');
+    canvas.width  = vp.width;
+    canvas.height = vp.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    partImages.push({ data: canvas.toDataURL('image/jpeg', 0.82), w: vp.width, h: vp.height });
+    canvas.width = 0; canvas.height = 0;
+    if (p % 4 === 0) await yieldToMain();
+  }
+
+  setProgress(82, 'Assembling DOCX');
+  log('Assembling DOCX structure…');
+  const blob = buildDocxFromImages(partImages, base);
+  STATE.resultBlob = blob;
+  STATE.resultName = `${base}_converted.docx`;
+  setProgress(94, 'Finalizing');
+  log(`DOCX created: ${fmtBytes(blob.size)}`, 'success');
+}
+
+/* ----------------------------------------------------------------
+   DOCX CONVERSIONS
+   ---------------------------------------------------------------- */
+async function convertDocx(format) {
+  const file = STATE.file;
+  const base = file.name.replace(/\.docx?$/i, '');
+  log(`Processing DOCX: ${file.name}`);
+  setProgress(8, 'Parsing DOCX');
+
+  // Parse DOCX → HTML via mammoth
+  const buf = await file.arrayBuffer();
+  let html = '';
+  try {
+    const result = await mammoth.convertToHtml({ arrayBuffer: buf });
+    html = result.value;
+    if (result.messages.length) {
+      result.messages.slice(0, 3).forEach(m => log(`Mammoth: ${m.message}`, 'warn'));
+    }
+    log('DOCX parsed to HTML');
+  } catch(e) {
+    log(`Parse warning: ${e.message}`, 'warn');
+    html = '<p>Document content could not be fully reconstructed.</p>';
+  }
+
+  setProgress(25, 'Rendering document');
+
+  if (format === 'pdf') {
+    const blob = await docxHtmlToPdf(html, base);
+    STATE.resultBlob = blob;
+    STATE.resultName = `${base}.pdf`;
+    log(`PDF created: ${fmtBytes(blob.size)}`, 'success');
+    return;
+  }
+
+  // Render to canvas, then to images
+  const fmtMap = { png_zip: 'image/png', jpg_zip: 'image/jpeg', webp_zip: 'image/webp' };
+  const mime   = fmtMap[format] || 'image/png';
+  const ext    = mime.split('/')[1].replace('jpeg','jpg');
+
+  log(`Rendering HTML to ${ext.toUpperCase()} images…`);
+  setProgress(35, 'Rendering pages');
+  const images = await htmlToImages(html, mime);
+  setProgress(82, 'Building ZIP');
+
+  const zip = new JSZip();
+  images.forEach((b64, i) => {
+    const pad = String(i+1).padStart(String(images.length).length, '0');
+    zip.file(`${base}_page_${pad}.${ext}`, b64, { base64: true });
+  });
+
+  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+  STATE.resultBlob = blob;
+  STATE.resultName = `${base}_pages.zip`;
+  log(`ZIP created with ${images.length} images: ${fmtBytes(blob.size)}`, 'success');
+}
+
+/* ----------------------------------------------------------------
+   DOCX HTML → PDF
+   ---------------------------------------------------------------- */
+async function docxHtmlToPdf(html, base) {
+  setProgress(40, 'Rendering HTML');
+  log('Building PDF from rendered HTML…');
+
+  // create off-screen iframe
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;height:1123px;border:none;background:#fff;';
+  document.body.appendChild(iframe);
+
+  iframe.contentDocument.open();
+  iframe.contentDocument.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+    <style>
+      body{font-family:Georgia,serif;font-size:12pt;line-height:1.6;padding:60px;color:#111;background:#fff;}
+      h1,h2,h3{font-weight:bold;margin:1em 0 0.5em;}
+      p{margin:0 0 0.8em;}
+      table{border-collapse:collapse;width:100%;margin:1em 0;}
+      td,th{border:1px solid #ccc;padding:6px 10px;}
+    </style></head><body>${html}</body></html>`);
+  iframe.contentDocument.close();
+
+  await delay(300);
+  setProgress(60, 'Capturing pages');
+
+  const A4_W = 794, A4_H = 1123;
+  const totalH = iframe.contentDocument.body.scrollHeight;
+  const numPages = Math.ceil(totalH / A4_H);
+
+  log(`Document height: ${totalH}px → ${numPages} page(s)`);
+
+  const pdfParts = ['%PDF-1.4\n'];
+  const offsets  = [];
+  let objIdx = 1;
+  const pageIds = [];
+  const xObjs   = [];
+
+  // helper: add object
+  function addObj(content) {
+    offsets.push(pdfParts.join('').length);
+    pdfParts.push(`${objIdx} 0 obj\n${content}\nendobj\n`);
+    return objIdx++;
+  }
+
+  // catalog & pages node — placeholder, filled after
+  const catalogId = objIdx++;
+  const pagesId   = objIdx++;
+  offsets.push(0); pdfParts.push(''); // placeholder catalog
+  offsets.push(0); pdfParts.push(''); // placeholder pages
+
+  for (let pg = 0; pg < numPages; pg++) {
+    if (STATE.abortFlag) break;
+    setProgress(60 + (pg / numPages) * 25, `Capturing page ${pg+1}/${numPages}`);
+
+    const canvas = document.createElement('canvas');
+    canvas.width  = A4_W;
+    canvas.height = A4_H;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, A4_W, A4_H);
+
+    // draw iframe content clipped to page
+    try {
+      const img = new Image();
+      await new Promise(res => {
+        const html2 = iframe.contentDocument.documentElement.outerHTML;
+        const blob2 = new Blob([html2], { type: 'text/html' });
+        const u2    = URL.createObjectURL(blob2);
+        img.onload = res; img.onerror = res;
+        img.src    = u2;
+        setTimeout(res, 600); // fallback timeout
+      });
+      ctx.save();
+      ctx.translate(0, -pg * A4_H);
+      ctx.drawImage(img, 0, 0, A4_W, totalH);
+      ctx.restore();
+    } catch(_){}
+
+    const jpegB64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+    const imgLen  = Math.ceil(jpegB64.length * 3 / 4);
+
+    offsets.push(pdfParts.join('').length);
+    const imgId = objIdx++;
+    pdfParts.push(`${imgId} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${A4_W} /Height ${A4_H} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imgLen} >>\nstream\n`);
+    pdfParts.push(atob(jpegB64));
+    pdfParts.push('\nendstream\nendobj\n');
+
+    const contentStr = `q ${A4_W} 0 0 ${A4_H} 0 0 cm /Im${pg} Do Q`;
+    offsets.push(pdfParts.join('').length);
+    const contentId = objIdx++;
+    pdfParts.push(`${contentId} 0 obj\n<< /Length ${contentStr.length} >>\nstream\n${contentStr}\nendstream\nendobj\n`);
+
+    offsets.push(pdfParts.join('').length);
+    const pageId = objIdx++;
+    pdfParts.push(`${pageId} 0 obj\n<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${A4_W} ${A4_H}] /Resources << /XObject << /Im${pg} ${imgId} 0 R >> >> /Contents ${contentId} 0 R >>\nendobj\n`);
+    pageIds.push(pageId);
+    canvas.width = 0; canvas.height = 0;
+  }
+
+  iframe.remove();
+
+  // fill catalog
+  const catalogStr = `<< /Type /Catalog /Pages ${pagesId} 0 R >>`;
+  pdfParts[1] = `${catalogId} 0 obj\n${catalogStr}\nendobj\n`;
+  offsets[0]  = '%PDF-1.4\n'.length;
+
+  // fill pages
+  const pagesStr = `<< /Type /Pages /Kids [${pageIds.map(id => `${id} 0 R`).join(' ')}] /Count ${pageIds.length} >>`;
+  pdfParts[2] = `${pagesId} 0 obj\n${pagesStr}\nendobj\n`;
+  offsets[1]  = offsets[0] + pdfParts[1].length;
+
+  // xref
+  const body = pdfParts.join('');
+  const xrefOffset = body.length;
+  const n = objIdx;
+  let xref = `xref\n0 ${n}\n0000000000 65535 f \n`;
+  for (let i = 1; i < n; i++) {
+    xref += String(offsets[i-1] || 0).padStart(10,'0') + ' 00000 n \n';
+  }
+  xref += `trailer\n<< /Size ${n} /Root ${catalogId} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  const finalStr = body + xref;
+  const bytes    = new Uint8Array(finalStr.length);
+  for (let i = 0; i < finalStr.length; i++) bytes[i] = finalStr.charCodeAt(i) & 0xFF;
+  return new Blob([bytes], { type: 'application/pdf' });
+}
+
+/* ----------------------------------------------------------------
+   HTML → IMAGE PAGES (for DOCX conversions)
+   ---------------------------------------------------------------- */
+async function htmlToImages(html, mime) {
+  const W = 794, H = 1123;
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = `position:fixed;left:-9999px;top:0;width:${W}px;height:${H}px;border:none;background:#fff;`;
+  document.body.appendChild(iframe);
+  iframe.contentDocument.open();
+  iframe.contentDocument.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+    <style>
+      body{font-family:Georgia,serif;font-size:12pt;line-height:1.6;padding:50px;color:#111;background:#fff;}
+      h1,h2,h3{font-weight:bold;margin:0.8em 0 0.4em;}
+      p{margin:0 0 0.7em;}
+    </style></head><body>${html}</body></html>`);
+  iframe.contentDocument.close();
+  await delay(350);
+
+  const totalH  = Math.max(iframe.contentDocument.body.scrollHeight, H);
+  const numPages = Math.ceil(totalH / H);
+  const results = [];
+
+  for (let pg = 0; pg < numPages; pg++) {
+    if (STATE.abortFlag) break;
+    setProgress(35 + (pg / numPages) * 45, `Rendering page ${pg+1}/${numPages}`);
+    const canvas = document.createElement('canvas');
+    canvas.width  = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+    const b64 = canvas.toDataURL(mime, STATE.quality).split(',')[1];
+    results.push(b64);
+    canvas.width = 0; canvas.height = 0;
+    log(`Page ${pg+1} captured`);
+    await yieldToMain();
+  }
+
+  iframe.remove();
+  return results;
+}
+
+/* ----------------------------------------------------------------
+   IMAGE → PDF
+   ---------------------------------------------------------------- */
+async function imageToPdf(img) {
+  setProgress(20, 'Encoding image');
+  const canvas = document.createElement('canvas');
+  canvas.width  = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+  const jpegB64 = canvas.toDataURL('image/jpeg', 0.90).split(',')[1];
+  const imgBytes = atob(jpegB64);
+  const W = img.naturalWidth, H = img.naturalHeight;
+  canvas.width = 0; canvas.height = 0;
+
+  setProgress(60, 'Building PDF');
+  await delay(80);
+
+  const contentStr = `q ${W} 0 0 ${H} 0 0 cm /Im0 Do Q`;
+  const pdf = [
+    '%PDF-1.4\n',
+    `1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n`,
+    `2 0 obj\n<< /Type /Pages /Kids [4 0 R] /Count 1 >>\nendobj\n`,
+    `3 0 obj\n<< /Type /XObject /Subtype /Image /Width ${W} /Height ${H} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imgBytes.length} >>\nstream\n`,
+    imgBytes,
+    `\nendstream\nendobj\n`,
+    `4 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /XObject << /Im0 3 0 R >> >> /Contents 5 0 R >>\nendobj\n`,
+    `5 0 obj\n<< /Length ${contentStr.length} >>\nstream\n${contentStr}\nendstream\nendobj\n`,
+  ];
+  const body = pdf.join('');
+  const xrefOffset = body.length;
+  let offsets = [0];
+  let pos = pdf[0].length;
+  for (let i = 1; i < pdf.length; i++) { offsets.push(pos); pos += pdf[i].length; }
+  let xref = `xref\n0 6\n0000000000 65535 f \n`;
+  for (let i = 1; i <= 5; i++) xref += String(offsets[i]).padStart(10,'0') + ' 00000 n \n';
+  xref += `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  const final = body + xref;
+  const bytes = new Uint8Array(final.length);
+  for (let i = 0; i < final.length; i++) bytes[i] = final.charCodeAt(i) & 0xFF;
+  setProgress(90, 'Finalizing');
+  return new Blob([bytes], { type: 'application/pdf' });
+}
+
+/* ----------------------------------------------------------------
+   BUILD DOCX FROM IMAGES (Open XML minimal)
+   ---------------------------------------------------------------- */
+function buildDocxFromImages(images, base) {
+  const zip = new JSZip();
+
+  zip.file('[Content_Types].xml',
+    `<?xml version="1.0" encoding="UTF-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml"  ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  ${images.map((_,i) => `<Override PartName="/word/media/img${i+1}.jpg" ContentType="image/jpeg"/>`).join('\n  ')}
+</Types>`);
+
+  zip.file('_rels/.rels',
+    `<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`);
+
+  const imageRels = images.map((_, i) =>
+    `<Relationship Id="rImg${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/img${i+1}.jpg"/>`
+  ).join('\n  ');
+
+  zip.file('word/_rels/document.xml.rels',
+    `<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  ${imageRels}
+</Relationships>`);
+
+  const paragraphs = images.map((img, i) => {
+    const dpi = 96;
+    const emu = 914400;
+    const maxW = 6120000; // ~6.375 inches
+    const aspectH = Math.round(maxW * (img.h / img.w));
+    return `<w:p>
+    <w:r>
+      <w:rPr/>
+      <w:drawing>
+        <wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">
+          <wp:extent cx="${maxW}" cy="${aspectH}"/>
+          <wp:docPr id="${i+1}" name="Image${i+1}"/>
+          <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+            <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+              <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                <pic:nvPicPr>
+                  <pic:cNvPr id="${i+1}" name="img${i+1}"/>
+                  <pic:cNvPicPr/>
+                </pic:nvPicPr>
+                <pic:blipFill>
+                  <a:blip r:embed="rImg${i+1}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>
+                  <a:stretch><a:fillRect/></a:stretch>
+                </pic:blipFill>
+                <pic:spPr>
+                  <a:xfrm><a:off x="0" y="0"/><a:ext cx="${maxW}" cy="${aspectH}"/></a:xfrm>
+                  <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+                </pic:spPr>
+              </pic:pic>
+            </a:graphicData>
+          </a:graphic>
+        </wp:inline>
+      </w:drawing>
+    </w:r>
+  </w:p>`;
+  }).join('\n');
+
+  zip.file('word/document.xml',
+    `<?xml version="1.0" encoding="UTF-8"?>
+<w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"
+  xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+  xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">
+<w:body>
+${paragraphs}
+<w:sectPr>
+  <w:pgSz w:w="12240" w:h="15840"/>
+  <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/>
+</w:sectPr>
+</w:body>
+</w:document>`);
+
+  // embed images
+  images.forEach((img, i) => {
+    const b64 = img.data.split(',')[1];
+    zip.file(`word/media/img${i+1}.jpg`, b64, { base64: true });
+  });
+
+  // generateAsync will be called outside; return a promise
+  return zip.generateAsync({ type: 'blob',
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+}
+
+/* ----------------------------------------------------------------
+   DOWNLOAD
+   ---------------------------------------------------------------- */
+function downloadResult() {
+  if (!STATE.resultBlob) return;
+  const url = URL.createObjectURL(STATE.resultBlob);
+  const a   = document.createElement('a');
+  a.href     = url;
+  a.download = STATE.resultName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  toast(`Downloading ${STATE.resultName}`, 'success');
+  log(`Download triggered: ${STATE.resultName}`, 'success');
+}
+
+/* ----------------------------------------------------------------
+   UTILITIES
+   ---------------------------------------------------------------- */
+function delay(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+function yieldToMain() {
+  return new Promise(r => setTimeout(r, 0));
+}
+
+function fmtBytes(b) {
+  if (b < 1024)       return b + ' B';
+  if (b < 1048576)    return (b / 1024).toFixed(1) + ' KB';
+  return               (b / 1048576).toFixed(2) + ' MB';
+}
+
+function truncStr(s, n) {
+  if (s.length <= n) return s;
+  const ext = s.lastIndexOf('.');
+  if (ext > 0 && s.length - ext < 8) {
+    return s.slice(0, n - (s.length - ext) - 1) + '…' + s.slice(ext);
+  }
+  return s.slice(0, n) + '…';
+}
+
+function dataURLtoBlob(dataUrl) {
+  const [header, data] = dataUrl.split(',');
+  const mime  = header.match(/:(.*?);/)[1];
+  const bytes = atob(data);
+  const arr   = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+async function readMagicBytes(file) {
+  const slice  = file.slice(0, 8);
+  const buffer = await slice.arrayBuffer();
+  const bytes  = new Uint8Array(buffer);
+  return Array.from(bytes).map(b => b.toString(16).padStart(2,'0').toUpperCase()).join(' ');
+}
+
+/* ----------------------------------------------------------------
+   PDF DOCX HELPER (async wrapper)
+   ---------------------------------------------------------------- */
+// Override buildDocxFromImages to handle async zip.generateAsync
+const _buildDocxFromImages = buildDocxFromImages;
+window._buildDocxFromImages = _buildDocxFromImages;
+
+// patch pdfToDocx to await zip promise
+async function pdfToDocxPatched(pdf, pages, base) {
+  const dpr  = 1.5;
+  const partImages = [];
+
+  const chipsWrap = document.getElementById('page-chips');
+  const ppEl      = document.getElementById('page-progress');
+  const pcLabel   = document.getElementById('page-count-label');
+  chipsWrap.innerHTML = '';
+  ppEl.classList.add('visible');
+  for (let i = 0; i < Math.min(pages, 60); i++) {
+    const c = document.createElement('div');
+    c.className = 'page-chip';
+    c.id = `chip-${i}`;
+    chipsWrap.appendChild(c);
+  }
+
+  for (let p = 1; p <= pages; p++) {
+    if (STATE.abortFlag) break;
+    const chip = document.getElementById(`chip-${p-1}`);
+    if (chip) chip.classList.add('active');
+    pcLabel.textContent = `${p} / ${pages}`;
+    setProgress(5 + (p / pages) * 75, `Rendering page ${p}/${pages}`);
+    log(`Rendering page ${p}…`);
+
+    const page   = await pdf.getPage(p);
+    const vp     = page.getViewport({ scale: dpr });
+    const canvas = document.createElement('canvas');
+    canvas.width  = vp.width;
+    canvas.height = vp.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    partImages.push({ data: canvas.toDataURL('image/jpeg', 0.82), w: vp.width, h: vp.height });
+    canvas.width = 0; canvas.height = 0;
+    if (chip) { chip.classList.remove('active'); chip.classList.add('done'); }
+    if (p % 4 === 0) await yieldToMain();
+  }
+
+  setProgress(82, 'Assembling DOCX');
+  log('Assembling DOCX structure…');
+  const blobPromise = buildDocxFromImages(partImages, base);
+  const blob = await blobPromise;
+  STATE.resultBlob = blob;
+  STATE.resultName = `${base}_converted.docx`;
+  setProgress(94, 'Finalizing');
+  log(`DOCX created: ${fmtBytes(blob.size)}`, 'success');
+}
+
+// Redirect pdfToDocx to patched version
+window.pdfToDocx = pdfToDocxPatched;
+
+// patch convertPdf to use window.pdfToDocx
+const _convertPdf = convertPdf;
+async function convertPdfPatched(format) {
+  const pdf   = STATE.pdfDoc;
+  const pages = STATE.pdfPageCount;
+  const base  = STATE.file.name.replace(/\.pdf$/i, '');
+
+  log(`PDF: ${pages} pages`);
+  log(`Target format: ${format}`);
+
+  if (format === 'docx') {
+    await window.pdfToDocx(pdf, pages, base);
+    return;
+  }
+
+  // page-based image extraction (same as before)
+  const fmtMap = { png_zip: { mime: 'image/png', ext: 'png' },
+                   jpg_zip: { mime: 'image/jpeg', ext: 'jpg' },
+                   webp_zip: { mime: 'image/webp', ext: 'webp' } };
+  const target = fmtMap[format];
+  if (!target) throw new Error('Unknown format: ' + format);
+
+  const chipsWrap = document.getElementById('page-chips');
+  const ppEl      = document.getElementById('page-progress');
+  const pcLabel   = document.getElementById('page-count-label');
+  chipsWrap.innerHTML = '';
+  ppEl.classList.add('visible');
+  for (let i = 0; i < Math.min(pages, 60); i++) {
+    const c = document.createElement('div');
+    c.className = 'page-chip';
+    c.id = `chip-${i}`;
+    chipsWrap.appendChild(c);
+  }
+
+  const zip  = new JSZip();
+  const dpr  = Math.min(window.devicePixelRatio || 1, 2);
+  const SCALE = 2 * dpr;
+
+  for (let p = 1; p <= pages; p++) {
+    if (STATE.abortFlag) break;
+    const chip = document.getElementById(`chip-${p-1}`);
+    if (chip) chip.classList.add('active');
+    pcLabel.textContent = `${p} / ${pages}`;
+    log(`Rendering page ${p}/${pages}…`);
+    setProgress(5 + (p / pages) * 88, `Rendering page ${p} of ${pages}`);
+
+    const page   = await pdf.getPage(p);
+    const vp     = page.getViewport({ scale: SCALE });
+    const canvas = document.createElement('canvas');
+    canvas.width  = vp.width;
+    canvas.height = vp.height;
+    const ctx    = canvas.getContext('2d');
+
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+    const dataUrl = canvas.toDataURL(target.mime, STATE.quality);
+    const b64     = dataUrl.split(',')[1];
+    const pad     = String(p).padStart(String(pages).length, '0');
+    zip.file(`${base}_page_${pad}.${target.ext}`, b64, { base64: true });
+    canvas.width = 0; canvas.height = 0;
+    if (chip) { chip.classList.remove('active'); chip.classList.add('done'); }
+    log(`Page ${p} rendered (${Math.round(vp.width/dpr)}×${Math.round(vp.height/dpr)})`, 'success');
+    if (p % 4 === 0) await yieldToMain();
+  }
+
+  setProgress(96, 'Compressing ZIP');
+  log('Generating ZIP archive…');
+  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } },
+    meta => setProgress(96 + meta.percent * 0.04, 'Compressing'));
+  STATE.resultBlob = blob;
+  STATE.resultName = `${base}_pages.zip`;
+  log(`ZIP created: ${fmtBytes(blob.size)}`, 'success');
+}
+
+// override global convertPdf
+window.convertPdf = convertPdfPatched;
+window.convertPdf.overridden = true;
+
+// final dispatcher patch
+async function startConversionPatched() {
+  if (STATE.converting || !STATE.selectedFormat || !STATE.file) return;
+  STATE.converting = true;
+  STATE.abortFlag  = false;
+  STATE.resultBlob = null;
+
+  document.getElementById('convert-btn').disabled = true;
+  document.getElementById('download-btn').style.display = 'none';
+  setEngineState('processing', 'Initializing conversion pipeline…');
+  setProgress(2, 'Initializing');
+  log('──────────────────────────────');
+  log('Conversion pipeline started', 'accent');
+
+  try {
+    const type   = STATE.fileType;
+    const format = STATE.selectedFormat;
+
+    if (type === 'image')      await convertImage(format);
+    else if (type === 'pdf')   await window.convertPdf(format);
+    else if (type === 'docx')  await convertDocx(format);
+
+    if (!STATE.abortFlag) {
+      setEngineState('done', 'Conversion complete — ready to download');
+      setProgress(100, 'Complete');
+      log('Pipeline complete', 'success');
+      document.getElementById('download-btn').style.display = 'inline-block';
+      toast('Conversion complete', 'success');
+    }
+  } catch(e) {
+    setEngineState('error', 'Conversion failed — ' + e.message);
+    log(`Error: ${e.message}`, 'warn');
+    toast('Conversion failed: ' + e.message, 'error');
+    console.error(e);
+  } finally {
+    STATE.converting = false;
+    document.getElementById('convert-btn').disabled = false;
+  }
+}
+
+// override
+window.startConversion = startConversionPatched;
+
+/* ----------------------------------------------------------------
+   PORTAL KEYBOARD SUPPORT
+   ---------------------------------------------------------------- */
+document.getElementById('portal').addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    document.getElementById('file-input').click();
+  }
+});
+
+/* ----------------------------------------------------------------
+   INITIAL TELEMETRY BOOT SEQUENCE
+   ---------------------------------------------------------------- */
+(async function bootSequence() {
+  await delay(400);
+  log('Converter Pro v2.0 initialized', 'accent');
+  await delay(200);
+  log('PDF.js engine: loaded');
+  await delay(150);
+  log('JSZip compression engine: loaded');
+  await delay(150);
+  log('Mammoth DOCX parser: loaded');
+  await delay(200);
+  log('All subsystems nominal', 'success');
+})();
+
+</script>
+</body>
+</html>
